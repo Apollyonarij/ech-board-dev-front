@@ -8,7 +8,7 @@ import { useRecord, useStore } from '../store'
 import { threadPath } from '../route'
 import type { ThreadRowRecord } from '../../store/rows'
 
-const sectionVariants = cva('mb-6')
+const sectionVariants = cva('mb-6 pr-3.5')
 const hiddenLabelVariants = cva('cursor-pointer px-0.5 py-1 text-lg italic text-secondary')
 const separatorVariants = cva('mt-6 h-px bg-separator opacity-50')
 const topicRowVariants = cva('flex items-center gap-2 px-0.5 pb-2')
@@ -63,7 +63,7 @@ export function ThreadPreview(props: {
           </section>
         }
       >
-        <section class={sectionVariants()}>
+        <section class={sectionVariants()} data-post-column="">
           <Show when={props.row.topic}>
             <div class={topicRowVariants()}>
               <div class={topicVariants()}>{props.row.topic}</div>

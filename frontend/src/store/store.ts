@@ -9,7 +9,8 @@ import { authorAddressOf, deriveThreadTitle, postMeta, postParts, postReplyTarge
 import { computeTweak, derivePostKeypair, fromHex, toHex } from '../core/intent/crypto'
 import type { DecryptContext } from '../core/intent/decrypt'
 import { buildDecryptContext } from '../core/intent/decrypt'
-import type { RoleKind } from '../core/intent/roles'
+import type { RoleKind, RoleOption } from '../core/intent/roles'
+import { detectRoles, matchesAuthor } from '../core/intent/roles'
 import { getSecretKeyBytes } from '../core/keys/storage'
 import { buildPostRecord, missingBlobs, type PostRecord } from './records'
 import { buildRows, sameRow, sameRows, type ThreadRowRecord } from './rows'
@@ -112,8 +113,11 @@ export class ForumStore {
   private roleKinds: RoleKind[] = []
   private master = getSecretKeyBytes()
   private attempted = new Set<string>()
+  private resyncs = 0
 
   loadThread(data: ThreadViewData): void {
+    const prev = this.threadData
+    if (prev && prev.threadUid === data.threadUid && data.posts.length > prev.posts.length) this.resyncs += 1
     this.mode = 'thread'
     this.threadData = data
     this.boardData = null
@@ -259,6 +263,10 @@ export class ForumStore {
     return this.threadPage
   }
 
+  resyncSeq(): number {
+    return this.resyncs
+  }
+
   pinnedUids(): string[] {
     const board = this.boardData
     if (!board) return []
@@ -294,8 +302,10 @@ export class ForumStore {
     return this.boardData ? this.boardData.board : null
   }
 
-  threadObject(): ThreadObject | null {
-    return this.threadData ? this.threadData.thread : null
+  threadObject(uid?: string): ThreadObject | null {
+    if (this.threadData && (uid == null || this.threadData.threadUid === uid)) return this.threadData.thread
+    if (uid == null) return null
+    return this.boardData?.threads.find((item) => toHex(item.root.id) === uid) ?? null
   }
 
   tooltipPost(uid: string, slug: string): TooltipPost | null {
@@ -321,6 +331,10 @@ export class ForumStore {
     return null
   }
 
+  ordinalOf(uid: string): number | null {
+    return this.threadData ? this.ordinals.get(uid) ?? null : null
+  }
+
   boardModerators(): Uint8Array[] {
     return this.boardData ? this.boardData.moderators.board_mods : []
   }
@@ -339,6 +353,11 @@ export class ForumStore {
   threadUid(): string | null {
     const first = this.order[0]
     return first ? (this.threadOf.get(first) ?? null) : null
+  }
+
+  opUid(): string | null {
+    const data = this.threadData
+    return data ? toHex(new ThreadProjection(data.thread.projection).op()) : null
   }
 
   boardInfo(): BoardPageInfo | null {
@@ -714,7 +733,7 @@ export class ForumStore {
         contentMap: ctx.contentMap,
         mediaMeta: ctx.mediaMeta,
         decryptCtx: ctx.decryptCtx,
-        moderators: ctx.moderators,
+        moderators: this.moderatorsOf(threadUid),
         master: this.master,
         boardReactions: ctx.boardReactions,
         roleKinds: this.roleKinds,
@@ -733,6 +752,46 @@ export class ForumStore {
       this.notify(uid)
     }
     this.recomputeCollections()
+  }
+
+  private threadAdminOf(threadUid: string): Uint8Array | null {
+    const thread = this.boardData?.threads.find((item) => toHex(item.root.id) === threadUid)
+    return thread ? new ThreadProjection(thread.projection).admin() : null
+  }
+
+  moderatorsOf(threadUid: string): ModeratorsData {
+    const ctx = this.ctx
+    if (!ctx) throw new Error('store has no context')
+    if (this.threadData) return ctx.moderators
+    return { ...ctx.moderators, thread_admin: this.threadAdminOf(threadUid) }
+  }
+
+  rolesForThread(threadUid: string): RoleOption[] {
+    const ctx = this.ctx
+    if (!ctx) return []
+    const roles = detectRoles({
+      master: this.master,
+      forumIdBytes: fromHex(ctx.forumId),
+      forumIdHex: ctx.forumId,
+      boardUidHex: ctx.boardUid,
+      threadUidHex: threadUid,
+      moderators: this.moderatorsOf(threadUid),
+      op: this.opIdentityOf(threadUid),
+    })
+    return roles.filter((role) => role.kind === 'thread_admin' || role.kind === 'thread_mod')
+  }
+
+  private opIdentityOf(threadUid: string): { tweak: Uint8Array; pk: Uint8Array } | null {
+    const ctx = this.ctx
+    if (!ctx) return null
+    const data = this.threadData
+    const opUid = data ? toHex(new ThreadProjection(data.thread.projection).op()) : null
+    const post = opUid ? this.postsByUid.get(opUid) : this.boardData?.opPosts.get(threadUid)
+    if (!post) return null
+    const sender = new PostProjection(post.projection).sender()
+    return matchesAuthor(this.master, fromHex(ctx.forumId), sender.pk, sender.tweak)
+      ? { tweak: sender.tweak, pk: sender.pk }
+      : null
   }
 
   private opAddressOfUid(uid: string): string | null {

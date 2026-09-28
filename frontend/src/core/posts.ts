@@ -5,24 +5,29 @@ export function authorAddressOf(post: PostObject): string {
   return toHex(senderAddress(new PostProjection(post.projection).sender().pk))
 }
 
-export function partsToPlainText(parts: PostPartInput[]): string {
+export function partsToPlainText(parts: PostPartInput[], foldsExpanded: boolean): string {
   let out = ''
-  for (const p of parts) out += partText(p)
+  for (const p of parts) out += partText(p, foldsExpanded)
   return out
 }
 
-function partText(p: PostPartInput): string {
+export function postLineCount(parts: PostPartInput[], foldsExpanded: boolean): number {
+  return partsToPlainText(parts, foldsExpanded).split('\n').length
+}
+
+function partText(p: PostPartInput, foldsExpanded: boolean): string {
   if ('Plain' in p) return p.Plain
-  if ('Bold' in p) return partsToPlainText(p.Bold)
-  if ('Italic' in p) return partsToPlainText(p.Italic)
-  if ('Code' in p) return partsToPlainText(p.Code)
-  if ('Underline' in p) return partsToPlainText(p.Underline)
-  if ('Overline' in p) return partsToPlainText(p.Overline)
-  if ('Spoiler' in p) return partsToPlainText(p.Spoiler)
-  if ('Strike' in p) return partsToPlainText(p.Strike)
-  if ('Sup' in p) return partsToPlainText(p.Sup)
-  if ('Sub' in p) return partsToPlainText(p.Sub)
-  if ('Link' in p) return partsToPlainText(p.Link.children)
+  if ('Bold' in p) return partsToPlainText(p.Bold, foldsExpanded)
+  if ('Italic' in p) return partsToPlainText(p.Italic, foldsExpanded)
+  if ('Code' in p) return partsToPlainText(p.Code, foldsExpanded)
+  if ('Underline' in p) return partsToPlainText(p.Underline, foldsExpanded)
+  if ('Overline' in p) return partsToPlainText(p.Overline, foldsExpanded)
+  if ('Spoiler' in p) return partsToPlainText(p.Spoiler, foldsExpanded)
+  if ('Strike' in p) return partsToPlainText(p.Strike, foldsExpanded)
+  if ('Sup' in p) return partsToPlainText(p.Sup, foldsExpanded)
+  if ('Sub' in p) return partsToPlainText(p.Sub, foldsExpanded)
+  if ('Link' in p) return partsToPlainText(p.Link.children, foldsExpanded)
+  if ('Fold' in p) return foldsExpanded ? `${p.Fold.title}\n${partsToPlainText(p.Fold.children, foldsExpanded)}` : p.Fold.title
   if ('ReplyTo' in p) return `>>${p.ReplyTo.hint}`
   if ('Secret' in p) return '[secret]'
   return ''
@@ -45,6 +50,7 @@ export function partsToEditText(parts: PostPartInput[]): { text: string; secrets
       else if ('Sup' in p) out += `[sup]${render(p.Sup)}[/sup]`
       else if ('Sub' in p) out += `[sub]${render(p.Sub)}[/sub]`
       else if ('Link' in p) out += `[url=${p.Link.url}]${render(p.Link.children)}[/url]`
+      else if ('Fold' in p) out += `[fold=${p.Fold.title}]${render(p.Fold.children)}[/fold]`
       else if ('ReplyTo' in p) out += `>>${p.ReplyTo.hint}`
       else if ('Secret' in p) {
         n += 1
@@ -123,6 +129,7 @@ function collectReplyTargets(parts: PostPartInput[], out: Set<string>): void {
     else if ('Sup' in p) collectReplyTargets(p.Sup, out)
     else if ('Sub' in p) collectReplyTargets(p.Sub, out)
     else if ('Link' in p) collectReplyTargets(p.Link.children, out)
+    else if ('Fold' in p) collectReplyTargets(p.Fold.children, out)
   }
 }
 
@@ -148,7 +155,7 @@ export function deriveThreadTitle(tp: ThreadProjection, content: Map<string, Uin
       const ob = content.get(toHex(oh))
       if (ob) {
         const parts = PostPartVec.parse(ob)
-        const line = partsToPlainText(parts).split('\n').find((s) => s.trim())
+        const line = partsToPlainText(parts, true).split('\n').find((s) => s.trim())
         if (line) return line
       }
     }

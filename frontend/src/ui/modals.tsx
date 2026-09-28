@@ -22,7 +22,7 @@ interface BanTarget {
 
 export interface ModalsApi {
   openThreadTopic: (threadUid: string) => void
-  openThreadModerators: () => void
+  openThreadModerators: (threadUid: string) => void
   openBoardModerators: () => void
   openForumModerators: () => void
   openBoardSettings: () => void
@@ -49,7 +49,7 @@ export function ModalsProvider(props: { roles: RoleOption[]; relayUrl: string; c
 
   const api: ModalsApi = {
     openThreadTopic: (threadUid) => setTopic({ threadUid, topic: store.threadTopic(threadUid) }),
-    openThreadModerators: () => setModerators(store.info()?.moderators ?? null),
+    openThreadModerators: (threadUid) => setModerators(store.moderatorsOf(threadUid)),
     openBoardModerators: () => setModerators(store.info()?.moderators ?? null),
     openForumModerators: () => setModerators(getForumModerators(props.relayUrl)),
     openBoardSettings: () => setBoardSettings(true),

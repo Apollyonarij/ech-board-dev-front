@@ -9,7 +9,7 @@ export interface MenuItem {
   danger?: boolean
 }
 
-const menuItemVariants = cva('w-full cursor-pointer bg-transparent px-2 py-1.5 text-left text-md text-fg rounded-md hover:bg-hover', {
+const menuItemVariants = cva('w-full cursor-pointer bg-transparent px-2 py-1.5 text-left text-md text-fg rounded-md hover:bg-hover no-underline', {
   variants: {
     danger: {
       true: 'text-danger',

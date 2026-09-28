@@ -11,11 +11,11 @@ import { useI18n } from '../i18n'
 import { useEntityActions } from '../entityActions'
 import { useIsMobile } from '../components/Gallery/useIsMobile'
 import { useMobileTabs } from '../mobileNav'
-import { canBoardSettings } from '../../core/intent/capabilities'
+import { canBanByUid, canBoardSettings } from '../../core/intent/capabilities'
 import { useNav } from '../nav'
 
 const pageVariants = cva('flex min-h-screen min-w-0 flex-col')
-const screenVariants = cva('flex min-h-dvh flex-col bg-bg')
+const screenVariants = cva('flex min-h-dvh flex-col')
 const headerIconBtnVariants = cva('px-1 py-2 hover:bg-hover')
 const boardMenuTriggerVariants = cva('px-1 py-2 hover:bg-hover')
 const listVariants = cva('px-6 pb-12 pt-4')
@@ -53,7 +53,7 @@ export function BoardPage(props: { forumId: string; slug: string; heading: strin
     if (!board) return items
     items.push({ label: t('mod.debug'), onClick: () => ea.openLogs('board', store.boardObject() ?? undefined) })
     items.push({ label: t('mod.bans'), onClick: () => ea.openBans(t('mod.bans'), board.uid) })
-    if (ea.canBanAny()) items.push({ label: t('mod.banUid'), onClick: () => ea.openBanUid() })
+    if (ea.canBanAny() && canBanByUid(ea.roleKinds())) items.push({ label: t('mod.banUid'), onClick: () => ea.openBanUid() })
     items.push({ label: t('mod.moderators'), onClick: () => ea.openBoardModerators() })
     if (canBoardSettings(ea.roleKinds())) items.push({ label: t('mod.manageBoard'), onClick: () => ea.openBoardSettings() })
     return items

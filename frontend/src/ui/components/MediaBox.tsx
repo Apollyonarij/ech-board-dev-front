@@ -76,6 +76,7 @@ export function MediaBox(props: { m: MediaInfo; record: PostRecord; onOpen: (m: 
   return (
     <a
       data-media=""
+      draggable={false}
       class={mediaCardVariants({ borderedUnbanned: (isVideo() || isGif() || isAudio() || isDocument()) && !props.m.banned })}
       href={props.m.banned ? undefined : props.m.fullUrl}
       target={isDocument() ? '_blank' : undefined}
@@ -106,13 +107,14 @@ export function MediaBox(props: { m: MediaInfo; record: PostRecord; onOpen: (m: 
             </div>
           }
         >
-          <img class={mediaThumbBlurVariants()} src={props.m.thumbUrl} alt="" aria-hidden="true" />
+          <img class={mediaThumbBlurVariants()} src={props.m.thumbUrl} alt="" aria-hidden="true" draggable={false} />
           <img
             class={mediaThumbVariants()}
             src={props.m.thumbUrl}
             alt=""
             loading="lazy"
             decoding="async"
+            draggable={false}
             onLoad={(e) => setNatW(e.currentTarget.naturalWidth)}
           />
         </Show>

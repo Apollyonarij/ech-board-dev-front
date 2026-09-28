@@ -31,6 +31,10 @@ export const PostPart: BcsType<PostPartInput> = bcs.enum('PostPart', {
     url: bcs.string(),
     children: bcs.vector(lazy(() => PostPart as unknown as BcsType<PostPartInput>)),
   }),
+  Fold: bcs.struct('Fold', {
+    title: bcs.string(),
+    children: bcs.vector(lazy(() => PostPart as unknown as BcsType<PostPartInput>)),
+  }),
 }) as unknown as BcsType<PostPartInput>
 
 export type PostPartInput =
@@ -47,6 +51,7 @@ export type PostPartInput =
   | { Sup: PostPartInput[] }
   | { Sub: PostPartInput[] }
   | { Link: { url: string; children: PostPartInput[] } }
+  | { Fold: { title: string; children: PostPartInput[] } }
 
 export const PostPartVec = bcs.vector(PostPart)
 

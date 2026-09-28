@@ -20,6 +20,7 @@
   --color-accent-hover: #cceeff;
   --color-success: #30d158;
   --color-danger: #ff453a;
+  --color-warn: #ff9f0a;
   --color-quote: #789922;
   --color-glass1: rgba(23, 36, 51, 0.9);
   --color-glass2: rgba(60, 91, 122, 0.5);
@@ -115,6 +116,7 @@
   --mobile-tab: 65px;
   --global-bar-h: 65px;
   --post-max-w: 1000px;
+  --post-bg: var(--color-panel1);
   background: var(--color-bg);
 }
 
@@ -124,8 +126,12 @@
     font-size: 15px;
     line-height: 1.35;
     font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
-    background: var(--color-bg);
     color: var(--color-fg);
+  }
+
+  .no-anchor,
+  .no-anchor body {
+    overflow-anchor: none;
   }
 
   input,
@@ -143,22 +149,41 @@
   }
 }
 
+@layer utilities {
+  a:not(.no-underline):hover,
+  .post-num:hover {
+    color: var(--color-accent-hover);
+  }
+
+  a:not(.no-underline):not(.link-card):hover,
+  .post-num:hover {
+    text-decoration: underline;
+  }
+}
+
 *::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
+  width: 4px;
+  height: 4px;
 }
 
 *::-webkit-scrollbar-track {
-  background: transparent;
+  background: var(--color-chip);
 }
 
 *::-webkit-scrollbar-thumb {
-  background: var(--color-panel3);
+  background: var(--color-toggle-track);
   border-radius: var(--radius-sm);
 }
 
 *::-webkit-scrollbar-thumb:hover {
-  background: var(--color-separator);
+  background: var(--color-track);
+}
+
+[data-composer] textarea::-webkit-scrollbar-track,
+[data-composer] textarea::-webkit-scrollbar-thumb {
+  border-top: 24px solid transparent;
+  border-bottom: 24px solid transparent;
+  background-clip: padding-box;
 }
 
 .mobile-forums::-webkit-scrollbar {
@@ -222,6 +247,16 @@
   -webkit-mask-image: linear-gradient(to top, black 0%, transparent 50%);
 }
 
+@media (max-width: 899px) {
+  .glass-fade--up:has(:is(textarea, input, select):focus) {
+    background: none;
+  }
+
+  .glass-fade--up:has(:is(textarea, input, select):focus)::before {
+    display: none;
+  }
+}
+
 .post-select-check:checked::after {
   content: '';
   position: absolute;
@@ -261,15 +296,6 @@
   background-repeat: no-repeat;
   background-position: center;
 }
+}
 
-.gallery-progress::before,
-.gallery-volslider::before {
-  content: '';
-  position: absolute;
-  top: -8px;
-  bottom: -8px;
-  left: -10px;
-  right: -10px;
-}
-}
 

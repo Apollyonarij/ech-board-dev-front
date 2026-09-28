@@ -8,6 +8,7 @@ import { scrollToPost } from '../scroll'
 import { threadPath, type Route } from '../route'
 import { useNav } from '../nav'
 import { SecretSpan } from './SecretSpan'
+import { Fold } from './Fold'
 import { PostRefLink } from '../postTooltip/PostRefLink'
 import type { DecryptContext } from '../../core/intent/decrypt'
 
@@ -15,9 +16,9 @@ const quoteVariants = cva('text-quote')
 const codeBlockVariants = cva('my-1.5 block overflow-x-auto whitespace-pre-wrap break-words rounded-sm bg-panel2 p-2.5 font-mono')
 const overlineVariants = cva('overline')
 const spoilerVariants = cva('post-spoiler')
-const linkCardVariants = cva('inline-flex h-linkcard w-linkcard cursor-pointer items-center justify-center overflow-hidden break-words rounded-sm bg-panel2 p-1.5 text-center font-semibold text-accent [text-decoration:none] hover:bg-hover')
+const linkCardVariants = cva('link-card inline-flex h-linkcard w-linkcard cursor-pointer items-center justify-center overflow-hidden break-words rounded-sm bg-panel2 p-1.5 text-center font-semibold text-accent hover:bg-hover')
 const linkRowVariants = cva('inline-flex flex-wrap gap-1.5')
-const refLinkVariants = cva('cursor-pointer text-accent hover:text-accent-hover')
+const refLinkVariants = cva('cursor-pointer text-accent')
 
 const URL_RE = /https?:\/\/[^\s<>"')\]}]+/g
 const URL_TRAIL = /[.,;:!?]+$/
@@ -57,6 +58,18 @@ function extractCodeText(parts: PostPartInput[]): string {
     else if ('Code' in p) s += extractCodeText(p.Code)
   }
   return s.replace(/^\n+/, '').replace(/\n+$/, '')
+}
+
+function trimPlain(part: PostPartInput, re: RegExp): PostPartInput {
+  return 'Plain' in part ? { Plain: part.Plain.replace(re, '') } : part
+}
+
+function trimFoldEdges(parts: PostPartInput[]): PostPartInput[] {
+  if (!parts.length) return parts
+  const out = parts.slice()
+  out[0] = trimPlain(out[0], /^\n+/)
+  out[out.length - 1] = trimPlain(out[out.length - 1], /\n+$/)
+  return out
 }
 
 function isReplyRefLine(line: string): boolean {
@@ -119,6 +132,9 @@ function renderPart(p: PostPartInput, opts: RenderOpts, replyTweaks: Uint8Array[
   if ('Strike' in p) return <s>{renderParts(p.Strike, opts, replyTweaks, missingRefs, renderNested)}</s>
   if ('Sup' in p) return <sup>{renderParts(p.Sup, opts, replyTweaks, missingRefs, renderNested)}</sup>
   if ('Sub' in p) return <sub>{renderParts(p.Sub, opts, replyTweaks, missingRefs, renderNested)}</sub>
+  if ('Fold' in p) {
+    return <Fold title={p.Fold.title}>{renderParts(trimFoldEdges(p.Fold.children), opts, replyTweaks, missingRefs, renderNested)}</Fold>
+  }
   if ('ReplyTo' in p) {
     const postHex = toHex(p.ReplyTo.post)
     const localNum = opts.postNums.get(postHex)
@@ -226,6 +242,7 @@ function collectReplyTweaks(parts: PostPartInput[], opts: RenderOpts): { tweaks:
     if ('Sup' in p) collectInto(collectReplyTweaks(p.Sup, opts), tweaks, missing)
     if ('Sub' in p) collectInto(collectReplyTweaks(p.Sub, opts), tweaks, missing)
     if ('Link' in p) collectInto(collectReplyTweaks(p.Link.children, opts), tweaks, missing)
+    if ('Fold' in p) collectInto(collectReplyTweaks(p.Fold.children, opts), tweaks, missing)
   }
   return { tweaks, missing }
 }

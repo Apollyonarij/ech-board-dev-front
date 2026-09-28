@@ -1,4 +1,4 @@
-import { createEffect, createMemo, createSignal, Show, type JSX } from 'solid-js'
+import { createEffect, createMemo, createSignal, onCleanup, Show, type JSX } from 'solid-js'
 import { cva } from 'class-variance-authority'
 import { useI18n } from '../../i18n'
 import { ClipIcon } from '../../icons/ClipIcon'
@@ -25,13 +25,14 @@ import { FilePreview } from './FilePreview'
 
 const spinnerVariants = cva('size-4 animate-spin rounded-full border-2 border-track border-t-fg')
 const composerRootVariants = cva(
-  'glass-fade glass-fade--up sticky bottom-0 left-0 right-0 z-nav mt-auto flex flex-col gap-1.5 px-4 pb-[calc(10px+env(safe-area-inset-bottom,0px))] pt-2.5 min-[900px]:min-h-[var(--global-bar-h)]',
+  'glass-fade glass-fade--up sticky bottom-0 left-0 right-0 z-nav mt-auto flex flex-col gap-1.5 px-4 pt-4 pb-[max(16px,env(safe-area-inset-bottom,0px))] min-[900px]:min-h-[var(--global-bar-h)]',
 )
 const dropOverlayVariants = cva(
   'pointer-events-none absolute inset-0 z-10 flex items-center justify-center rounded-lg border-2 border-dashed border-accent bg-bg text-accent uppercase [letter-spacing:0.03em]',
 )
 const actionRowVariants = cva('flex items-end gap-2')
-const textareaVariants = cva('min-h-composer max-h-composer min-w-0 flex-1 resize-none overflow-y-auto rounded-3xl bg-glass2 p-3 text-lg leading-5 text-fg outline-none glass')
+const textareaVariants = cva('min-h-composer max-h-composer min-w-0 flex-1 resize-none overflow-y-hidden rounded-3xl bg-glass2 p-3 text-lg leading-5 text-fg outline-none glass transition-[height] duration-[160ms] ease-out')
+const mirrorVariants = cva('box-border min-h-composer max-h-composer resize-none overflow-hidden p-3 text-lg leading-5')
 const hiddenInputVariants = cva('hidden')
 
 function isAllowedMedia(type: string): boolean {
@@ -75,16 +76,18 @@ export function PostComposer(props: { mode?: 'reply' | 'thread'; slug?: string; 
 
   const token = {}
   let textarea: HTMLTextAreaElement | undefined
+  let mirror: HTMLTextAreaElement | undefined
   let fileInput: HTMLInputElement | undefined
   let root: HTMLDivElement | undefined
   let pendingCaret: number | null = null
+  let capped = false
 
   const roles = createMemo(() => {
     const info = store.info()
     if (!info) return []
     const master = getSecretKeyBytes()
     const forumIdBytes = fromHex(info.forumId)
-    const opUid = store.page()?.uid
+    const opUid = store.opUid()
     const opRecord = opUid ? store.get(opUid) : undefined
     const op =
       opRecord && matchesAuthor(master, forumIdBytes, opRecord.senderPk, opRecord.senderTweak)
@@ -171,15 +174,42 @@ export function PostComposer(props: { mode?: 'reply' | 'thread'; slug?: string; 
     }
   })
 
-  createEffect(() => {
+  const keepScrollTop = () => {
     const el = textarea
-    const value = text()
+    if (el && !capped) el.scrollTop = 0
+  }
+  const followEnd = () => {
+    const el = textarea
     if (!el) return
-    el.style.height = 'auto'
-    const height = el.scrollHeight
+    if (!capped) {
+      el.scrollTop = 0
+      return
+    }
+    if (el.selectionEnd === el.value.length) el.scrollTop = el.scrollHeight
+  }
+  const syncHeight = () => {
+    const value = text()
+    const el = textarea
+    const box = mirror
+    if (!el || !box) return
+    const wasCapped = capped
+    box.style.width = `${el.clientWidth}px`
+    box.value = value
+    box.style.height = 'auto'
+    const height = box.scrollHeight
     if (height > 0) el.style.height = `${height}px`
-    void value
+    const cap = Number.parseFloat(getComputedStyle(box).maxHeight)
+    capped = height > cap + 1
+    el.style.overflowY = capped ? 'auto' : 'hidden'
+    if (!capped) el.scrollTop = 0
+    if (capped !== wasCapped) syncHeight()
+  }
+  createEffect(() => {
+    syncHeight()
+    followEnd()
   })
+  window.addEventListener('resize', syncHeight)
+  onCleanup(() => window.removeEventListener('resize', syncHeight))
 
   createEffect(() => {
     const target = editing()
@@ -204,19 +234,17 @@ export function PostComposer(props: { mode?: 'reply' | 'thread'; slug?: string; 
     const selected = text().slice(start, end)
     const after = text().slice(end)
     let next: string
-    let cursor: number
     if (tag === 'url') {
       next = before + `[url=]${selected}[/url]` + after
-      cursor = start + 5
+    } else if (tag === 'fold') {
+      next = before + `[fold=]${selected}[/fold]` + after
     } else if (selected) {
       next = before + `[${tag}]${selected}[/${tag}]` + after
-      cursor = start + tag.length + 2 + selected.length + tag.length + 3
     } else {
       next = before + `[${tag}][/${tag}]` + after
-      cursor = start + tag.length + 2
     }
     setText(next)
-    pendingCaret = cursor
+    el.focus()
   }
 
   const insertReply = (quote: string) => {
@@ -236,6 +264,7 @@ export function PostComposer(props: { mode?: 'reply' | 'thread'; slug?: string; 
     pendingCaret = null
     el.focus()
     el.setSelectionRange(pos, pos)
+    followEnd()
   })
 
   createEffect(() => {
@@ -340,6 +369,9 @@ export function PostComposer(props: { mode?: 'reply' | 'thread'; slug?: string; 
       }}
     >
       {props.nav}
+      <div class="pointer-events-none invisible absolute left-0 top-0 h-0 w-0 overflow-hidden">
+        <textarea ref={mirror} class={mirrorVariants()} rows={1} tabIndex={-1} aria-hidden="true" />
+      </div>
       <Show when={dragOver()}>
         <div class={dropOverlayVariants()}>{t('postForm.dropHere')}</div>
       </Show>
@@ -396,6 +428,7 @@ export function PostComposer(props: { mode?: 'reply' | 'thread'; slug?: string; 
           placeholder={isThread() ? t('postForm.commentOp') : t('postForm.comment')}
           rows={1}
           value={text()}
+          onScroll={keepScrollTop}
           onInput={(e) => setText(e.currentTarget.value)}
           onKeyDown={(e) => {
             if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {

@@ -59,7 +59,10 @@ export function buildRows(data: BoardViewData): RowsResult {
     const repliesLive = repliesAll.filter((p) => !new PostProjection(p.projection).deleted())
     const rowAll = rowOf(data, thread, tp, boardPinned, repliesAll)
     all.push(rowAll)
-    live.push(repliesAll.length === repliesLive.length ? rowAll : rowOf(data, thread, tp, boardPinned, repliesLive))
+    const op = data.opPosts.get(uid)
+    if (!rowAll.deleted && !(op && new PostProjection(op.projection).deleted())) {
+      live.push(repliesAll.length === repliesLive.length ? rowAll : rowOf(data, thread, tp, boardPinned, repliesLive))
+    }
     if (rowAll.opUid) relNum.set(rowAll.opUid, 1)
     for (let i = 0; i < rowAll.replyUids.length; i++) relNum.set(rowAll.replyUids[i], rowAll.count - rowAll.replyUids.length + 1 + i)
   }

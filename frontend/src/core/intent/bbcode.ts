@@ -48,6 +48,7 @@ type ParsedPart =
   | { kind: 'secret'; children: ParsedPart[] }
   | { kind: 'secretRef'; index: number }
   | { kind: 'link'; url: string; children: ParsedPart[] }
+  | { kind: 'fold'; title: string; children: ParsedPart[] }
   | { kind: 'reply'; forum: Uint8Array; board: Uint8Array; post: Uint8Array; hint: string; author?: Uint8Array }
 
 export async function parseBbCode(text: string, resolvePost?: PostResolver): Promise<ParsedPart[]> {
@@ -139,6 +140,21 @@ export async function parseBbCode(text: string, resolvePost?: PostResolver): Pro
       continue
     }
 
+    if (tagName.startsWith('fold=')) {
+      const title = tag.slice(5)
+      const endTag = findMatchingFoldClose(text, closeBracket + 1)
+      if (endTag === -1) {
+        pushPlain(result, text.slice(i, closeBracket + 1))
+        i = closeBracket + 1
+        continue
+      }
+      const inner = text.slice(closeBracket + 1, endTag)
+      const children = await parseBbCode(inner, resolvePost)
+      result.push({ kind: 'fold', title, children })
+      i = endTag + FOLD_CLOSE.length
+      continue
+    }
+
     const variant = TAG_MAP[tagName]
     if (!variant) {
       pushPlain(result, text[i])
@@ -147,7 +163,7 @@ export async function parseBbCode(text: string, resolvePost?: PostResolver): Pro
     }
 
     const closeTag = `[/${tagName}]`
-    const endTag = text.indexOf(closeTag, closeBracket + 1)
+    const endTag = findMatchingClose(text, tagName, closeBracket + 1)
     if (endTag === -1) {
       pushPlain(result, text.slice(i, closeBracket + 1))
       i = closeBracket + 1
@@ -172,6 +188,49 @@ function pushPlain(result: ParsedPart[], text: string) {
   }
 }
 
+const FOLD_OPEN = '[fold='
+const FOLD_CLOSE = '[/fold]'
+
+function findMatchingFoldClose(text: string, from: number): number {
+  let depth = 1
+  let pos = from
+  while (pos < text.length) {
+    const nextOpen = text.indexOf(FOLD_OPEN, pos)
+    const nextClose = text.indexOf(FOLD_CLOSE, pos)
+    if (nextClose === -1) return -1
+    if (nextOpen !== -1 && nextOpen < nextClose) {
+      depth++
+      pos = nextOpen + FOLD_OPEN.length
+      continue
+    }
+    depth--
+    if (depth === 0) return nextClose
+    pos = nextClose + FOLD_CLOSE.length
+  }
+  return -1
+}
+
+function findMatchingClose(text: string, tagName: string, from: number): number {
+  const open = `[${tagName}]`
+  const close = `[/${tagName}]`
+  let depth = 1
+  let pos = from
+  while (pos < text.length) {
+    const nextOpen = text.indexOf(open, pos)
+    const nextClose = text.indexOf(close, pos)
+    if (nextClose === -1) return -1
+    if (nextOpen !== -1 && nextOpen < nextClose) {
+      depth++
+      pos = nextOpen + open.length
+      continue
+    }
+    depth--
+    if (depth === 0) return nextClose
+    pos = nextClose + close.length
+  }
+  return -1
+}
+
 export async function finalizeParts(parts: ParsedPart[], senderPriv: Uint8Array, senderPub: Uint8Array, secretRefs?: Map<number, PostPartInput>): Promise<PostPartInput[]> {
   const seen = new Set<string>()
   const replyPubkeys: Uint8Array[] = []
@@ -190,7 +249,7 @@ function collectReplyPubkeys(parts: ParsedPart[], seen: Set<string>, replyPubkey
           replyPubkeys.push(p.author)
         }
       }
-    } else if (p.kind === 'formatted' || p.kind === 'link') {
+    } else if (p.kind === 'formatted' || p.kind === 'link' || p.kind === 'fold') {
       collectReplyPubkeys(p.children, seen, replyPubkeys)
     } else if (p.kind === 'secret') {
       collectReplyPubkeys(p.children, seen, replyPubkeys)
@@ -221,6 +280,9 @@ async function convertParts(
     } else if (p.kind === 'link') {
       const children = await convertParts(p.children, senderPriv, senderPub, replyPubkeys, secretRefs)
       out.push({ Link: { url: p.url, children } })
+    } else if (p.kind === 'fold') {
+      const children = await convertParts(p.children, senderPriv, senderPub, replyPubkeys, secretRefs)
+      out.push({ Fold: { title: p.title, children } })
     } else if (p.kind === 'formatted') {
       const children = await convertParts(p.children, senderPriv, senderPub, replyPubkeys, secretRefs)
       out.push({ [p.variant]: children } as PostPartInput)
@@ -247,5 +309,6 @@ function firstPlainLineOfPart(p: PostPartInput): string | null {
   if ('Strike' in p) return firstPlainLine(p.Strike)
   if ('Sup' in p) return firstPlainLine(p.Sup)
   if ('Sub' in p) return firstPlainLine(p.Sub)
+  if ('Fold' in p) return p.Fold.title || firstPlainLine(p.Fold.children)
   return null
 }

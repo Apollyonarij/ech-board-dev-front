@@ -24,6 +24,16 @@ export function matchesAuthor(master: Uint8Array, forumId: Uint8Array, pk: Uint8
   return toHex(derived.publicKey) === toHex(pk)
 }
 
+export function signable(role?: RoleOption | null): role is RoleOption {
+  return !!role && (!!role.rawTweak || !!role.tweakArgs)
+}
+
+export function roleTweak(role: RoleOption): Uint8Array {
+  if (role.rawTweak) return role.rawTweak
+  if (role.tweakArgs) return computeTweak(...role.tweakArgs)
+  throw new Error('role has no identity')
+}
+
 function roleCandidates(master: Uint8Array, forumId: Uint8Array, scopeIdHex: string, tag: 'moder' | 'admin'): { address: Uint8Array; tweakArgs: (Uint8Array | string)[] }[] {
   const idStr = scopeIdHex.replace(/^0x/, '')
   const tweak = computeTweak(idStr, tag)
@@ -69,6 +79,37 @@ export interface RoleContext {
   op?: { tweak: Uint8Array; pk: Uint8Array } | null
 }
 
+export function threadAdminRole(
+  master: Uint8Array,
+  forumIdBytes: Uint8Array,
+  threadUidHex: string,
+  admin: Uint8Array | null,
+  op: { tweak: Uint8Array; pk: Uint8Array } | null,
+): RoleOption | null {
+  if (!admin) return null
+  const candidate = roleCandidates(master, forumIdBytes, threadUidHex, 'admin')[0]
+  if (inList(candidate.address, [admin])) {
+    return { kind: 'thread_admin', labelKey: 'roles.threadAdmin', addressHex: toHex(candidate.address), tweakArgs: candidate.tweakArgs }
+  }
+  if (op && toHex(senderAddress(op.pk)) === toHex(admin)) {
+    return {
+      kind: 'thread_admin',
+      labelKey: 'roles.threadAdmin',
+      addressHex: toHex(senderAddress(op.pk)),
+      rawTweak: op.tweak,
+      selectable: false,
+    }
+  }
+  return null
+}
+
+export function withThreadRoles(viewRoles: RoleOption[], threadRoles: RoleOption[]): RoleOption[] {
+  return [
+    ...viewRoles.filter((role) => role.kind !== 'thread_admin' && role.kind !== 'thread_mod'),
+    ...threadRoles,
+  ]
+}
+
 export function detectRoles(ctx: RoleContext): RoleOption[] {
   const roles: RoleOption[] = [{ kind: 'anonymous', labelKey: 'roles.anonymous' }]
   const mods = ctx.moderators
@@ -82,19 +123,8 @@ export function detectRoles(ctx: RoleContext): RoleOption[] {
 
   if (ctx.threadUidHex) {
     pushRole(roles, 'thread_mod', 'roles.threadMod', mods.thread_mods, roleCandidates(ctx.master, ctx.forumIdBytes, ctx.threadUidHex, 'moder'))
-    pushRole(roles, 'thread_admin', 'roles.threadAdmin', adminList(mods.thread_admin), roleCandidates(ctx.master, ctx.forumIdBytes, ctx.threadUidHex, 'admin'))
-    if (!roles.some((role) => role.kind === 'thread_admin') && ctx.op && mods.thread_admin) {
-      const opAddress = senderAddress(ctx.op.pk)
-      if (toHex(opAddress) === toHex(mods.thread_admin)) {
-        roles.push({
-          kind: 'thread_admin',
-          labelKey: 'roles.threadAdmin',
-          addressHex: toHex(opAddress),
-          rawTweak: ctx.op.tweak,
-          selectable: false,
-        })
-      }
-    }
+    const adminRole = threadAdminRole(ctx.master, ctx.forumIdBytes, ctx.threadUidHex, mods.thread_admin, ctx.op ?? null)
+    if (adminRole) roles.push(adminRole)
   }
 
   pushRole(roles, 'forum_admin', 'roles.forumAdmin', adminList(mods.forum_admin), roleCandidates(ctx.master, ctx.forumIdBytes, ctx.forumIdHex, 'admin'))

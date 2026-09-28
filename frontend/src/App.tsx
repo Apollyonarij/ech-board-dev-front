@@ -31,7 +31,7 @@ import { StatusPill } from './ui/components/StatusPill'
 import { StateScreen } from './ui/components/StateScreen'
 import { rememberContentPath, NavProvider, useNav } from './ui/nav'
 
-const rootVariants = cva('min-h-dvh bg-bg')
+const rootVariants = cva('min-h-dvh')
 const asideVariants = cva('max-[899px]:hidden fixed left-0 top-0 bottom-0 z-nav flex flex-col border-r border-separator bg-panel1', {
   variants: {
     collapsed: {
@@ -256,21 +256,16 @@ function Shell() {
     localStorage.setItem('nav-collapsed', collapsed() ? '1' : '0')
   })
 
-  let lastKey: string | null = null
-  const savedScrolls = new Map<string, number>()
-  const contentKey = () => {
-    const current = route()
-    if (current.page === 'thread') return `thread:${current.slug}:${current.threadNum}`
-    if (current.page === 'board') return `board:${current.slug}`
-    if (current.page === 'compose') return `compose:${current.slug}`
-    if (current.page === 'settings') return `settings:${current.setting ?? ''}`
-    return 'boards'
-  }
+  const [heldHeight, setHeldHeight] = createSignal(0)
   createEffect(() => {
-    const key = contentKey()
-    if (lastKey != null && lastKey !== key) savedScrolls.set(lastKey, window.scrollY)
-    lastKey = key
-    window.scrollTo(0, savedScrolls.get(key) ?? 0)
+    let raf = requestAnimationFrame(function tick() {
+      if (!loading() && !error()) setHeldHeight(document.documentElement.scrollHeight)
+      raf = requestAnimationFrame(tick)
+    })
+    onCleanup(() => cancelAnimationFrame(raf))
+  })
+  createEffect(() => {
+    document.documentElement.classList.toggle('no-anchor', loading() || refreshing())
   })
 
   const panel = () => (
@@ -300,6 +295,7 @@ function Shell() {
             <ComposerBridgeProvider>
               <GalleryProvider>
                 <PostTooltipProvider
+                  boardPage={boardRoute() != null}
                   resolve={(uid) => {
                     const current = route()
                     const slug = current && 'slug' in current ? current.slug : ''
@@ -313,7 +309,7 @@ function Shell() {
                     <IconSprite />
                     <TitleSync boards={boards()} />
                     <aside class={asideVariants({ collapsed: collapsed() })}>{panel()}</aside>
-                    <main class={mainVariants({ offset: collapsed() ? 'collapsed' : 'nav' })}>
+                    <main class={mainVariants({ offset: collapsed() ? 'collapsed' : 'nav' })} style={{ 'min-height': loading() || refreshing() ? `${heldHeight()}px` : '' }}>
                       <Show
                         when={context() && !loading()}
                         fallback={<StateScreen error={error()} />}

@@ -10,7 +10,7 @@ export interface PostRecord {
   readonly uid: string
   readonly threadUid: string
   readonly number: number
-  readonly relNum: number
+  readonly relNum: number | null
   readonly op: boolean
   readonly post: PostObject
   readonly senderPk: Uint8Array
@@ -23,7 +23,6 @@ export interface PostRecord {
   readonly hasText: boolean
   readonly parts: PostPartInput[] | null
   readonly plain: string
-  readonly lineCount: number
   readonly refs: readonly PostRef[]
   readonly media: readonly MediaInfo[]
   readonly reactions: readonly ReactionInfo[]
@@ -60,7 +59,7 @@ export interface RecordInput {
   op: boolean
   opAddress: string | null
   opDeleted: boolean
-  relNum: number
+  relNum: number | null
   refs: readonly PostRef[]
   myReaction: string | null
   myReactionBase: string | null
@@ -83,6 +82,7 @@ function walkRepliedMine(parts: PostPartInput[], decryptCtx: DecryptContext): bo
     else if ('Sup' in p && walkRepliedMine(p.Sup, decryptCtx)) return true
     else if ('Sub' in p && walkRepliedMine(p.Sub, decryptCtx)) return true
     else if ('Link' in p && walkRepliedMine(p.Link.children, decryptCtx)) return true
+    else if ('Fold' in p && walkRepliedMine(p.Fold.children, decryptCtx)) return true
   }
   return false
 }
@@ -121,7 +121,7 @@ export function buildPostRecord(input: RecordInput): PostRecord {
   const geo = pp.geo()
   const textHash = meta.textHash
   const parts = textHash === null ? [] : contentMap.has(textHash) ? postParts(post, contentMap) : null
-  const plain = parts ? partsToPlainText(parts) : ''
+  const plain = parts ? partsToPlainText(parts, true) : ''
   const timestampMs = Number(pp.timestamp_ms())
   const deleted = meta.deleted || input.opDeleted
   const ageMs = input.now - timestampMs
@@ -144,7 +144,6 @@ export function buildPostRecord(input: RecordInput): PostRecord {
     hasText: textHash !== null,
     parts,
     plain,
-    lineCount: plain.split('\n').length,
     refs: input.refs,
     media: postMedia(post, input.relayUrl, input.boardUid, input.threadUid, input.mediaMeta, true),
     reactions: reactionBubbles(post, input.relayUrl, input.boardUid, input.myReaction, input.myReactionBase),

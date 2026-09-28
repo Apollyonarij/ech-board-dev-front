@@ -9,6 +9,7 @@ export function previewRecord(
   data: TooltipPost,
   roleKinds: RoleKind[],
   pending: { local: string | null; base: string | null } | null,
+  relNum: number | null,
 ): PostRecord {
   const uid = toHex(data.post.root.id)
   const opUid = data.threadObj ? toHex(new ThreadProjection(data.threadObj.projection).op()) : null
@@ -22,14 +23,16 @@ export function previewRecord(
     contentMap: data.ctx.contentMap,
     mediaMeta: data.ctx.mediaMeta,
     decryptCtx: data.ctx.decryptCtx,
-    moderators: data.ctx.moderators,
+    moderators: data.threadObj
+      ? { ...data.ctx.moderators, thread_admin: new ThreadProjection(data.threadObj.projection).admin() }
+      : data.ctx.moderators,
     master: getSecretKeyBytes(),
     boardReactions: data.ctx.boardReactions,
     roleKinds,
     op: opUid === uid,
     opAddress: data.opAddress,
     opDeleted: false,
-    relNum: 1,
+    relNum,
     refs: data.refs ?? [],
     myReaction: pending && pending.base === base ? pending.local : base,
     myReactionBase: base,

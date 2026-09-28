@@ -4,7 +4,7 @@ import { BoardsIcon } from '../icons/BoardsIcon'
 import { SettingsIcon } from '../icons/SettingsIcon'
 import { IconButton } from './IconButton'
 
-const tabsVariants = cva('glass-fade glass-fade--up fixed inset-x-0 bottom-0 z-tabbar flex items-end px-3 pt-6 pb-[calc(10px+env(safe-area-inset-bottom,0px))] pointer-events-none')
+const tabsVariants = cva('fixed inset-x-0 bottom-0 z-tabbar flex items-end px-3 pt-4 pb-[max(16px,env(safe-area-inset-bottom,0px))] pointer-events-none')
 const pillVariants = cva('mx-auto flex w-[50%] items-center gap-2 rounded-full glass bg-glass1 p-2 pointer-events-auto')
 
 export function TabBar(props: {

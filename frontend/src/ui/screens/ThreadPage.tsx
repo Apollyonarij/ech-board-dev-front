@@ -15,14 +15,14 @@ import { threadModItems } from '../threadModItems'
 import { createThreadUnread } from '../unread'
 import { scrollToPost } from '../scroll'
 import { useNav } from '../nav'
-import { canPostAction } from '../../core/intent/capabilities'
+import { canBanByUid, canPostAction } from '../../core/intent/capabilities'
 
 const pageVariants = cva('flex min-h-screen min-w-0 flex-col')
-const screenVariants = cva('flex min-h-dvh flex-col bg-bg')
+const screenVariants = cva('flex min-h-dvh flex-col')
 const menuTriggerVariants = cva('ml-auto px-1 py-2 hover:bg-hover')
-const listVariants = cva('pl-4')
+const listVariants = cva('pl-4 pr-3.5')
 const listMobileVariants = cva('pl-[calc(1rem+env(safe-area-inset-left,0px))] pr-[calc(1rem+env(safe-area-inset-right,0px))] pb-0 pt-2.5')
-const markerVariants = cva('my-3 w-full border-t-2 border-dashed border-accent')
+const markerVariants = cva('my-3 w-full border-t-2 border-dashed border-accent will-change-transform')
 
 export function ThreadPage(props: { forumId: string; slug: string; threadNum: number }) {
   const { showDeleted, t } = useI18n()
@@ -35,9 +35,9 @@ export function ThreadPage(props: { forumId: string; slug: string; threadNum: nu
     const current = page()
     if (!current) return []
     const items = threadModItems(t, ea, { threadUid: current.uid, closed: current.closed, deleted: current.deleted })
-    items.push({ label: t('mod.moderators'), onClick: () => ea.openThreadModerators() })
+    items.push({ label: t('mod.moderators'), onClick: () => ea.openThreadModerators(current.uid) })
     items.push({ label: t('mod.bans'), onClick: () => ea.openBans(t('mod.bans'), current.uid) })
-    if (ea.canBanAny()) items.push({ label: t('mod.banUid'), onClick: () => ea.openBanUid() })
+    if (ea.canBanAny() && canBanByUid(ea.roleKinds())) items.push({ label: t('mod.banUid'), onClick: () => ea.openBanUid() })
     return items
   }
   return (
@@ -76,40 +76,101 @@ function ThreadBody(props: {
   const heading = () => store.threadTitle() || `#${props.threadNum}`
   const sub = () => (store.threadTitle() ? `/${props.slug}/ - ${t('ui.threadLabel', { n: props.threadNum })}` : `/${props.slug}/`)
   const back = () => nav.back()
-  const unread = createThreadUnread(() => posts().length)
+  const unread = createThreadUnread(
+    () => posts().length,
+    () => store.resyncSeq(),
+  )
+  let seenResync = store.resyncSeq()
   let atBottom = false
+  let pinned = false
+  let lastY = 0
+  let lastMax = 0
+  let adjustUntil = 0
+  let followUntil = 0
   let prevLength = 0
   const [atTop, setAtTop] = createSignal(true)
   const [atEnd, setAtEnd] = createSignal(false)
+  const bottomReached = () => window.scrollY >= lastMax - 8
   const measure = () => {
     const max = document.documentElement.scrollHeight - window.innerHeight
     const y = window.scrollY
-    atBottom = max <= 0 || y >= max - 0.5
+    const now = performance.now()
     setAtTop(y <= 1)
+    lastMax = max
+    if (now < adjustUntil) {
+      lastY = y
+      return
+    }
+    if (max <= 0 || y >= max - 0.5) {
+      atBottom = true
+      pinned = true
+      followUntil = 0
+    } else if (now < followUntil) {
+      followUntil = now + 300
+    } else {
+      atBottom = false
+      pinned = pinned && y >= lastY - 0.5
+    }
     setAtEnd(atBottom)
+    lastY = y
+  }
+  const scrollKeys = new Set(['ArrowUp', 'ArrowDown', 'PageUp', 'PageDown', 'Home', 'End', ' '])
+  const yieldScroll = (e: Event) => {
+    if (e instanceof KeyboardEvent && !scrollKeys.has(e.key)) return
+    followUntil = 0
   }
   window.addEventListener('scroll', measure, { passive: true })
   window.addEventListener('resize', measure)
+  window.addEventListener('wheel', yieldScroll, { passive: true })
+  window.addEventListener('touchstart', yieldScroll, { passive: true })
+  window.addEventListener('keydown', yieldScroll)
   onCleanup(() => {
     window.removeEventListener('scroll', measure)
     window.removeEventListener('resize', measure)
+    window.removeEventListener('wheel', yieldScroll)
+    window.removeEventListener('touchstart', yieldScroll)
+    window.removeEventListener('keydown', yieldScroll)
   })
   const mounted = requestAnimationFrame(measure)
   onCleanup(() => cancelAnimationFrame(mounted))
 
-  const up = () => window.scrollTo(0, 0)
-  const down = () => window.scrollTo(0, document.documentElement.scrollHeight)
+  const up = () => {
+    adjustUntil = 0
+    atBottom = false
+    pinned = false
+    setAtEnd(false)
+    window.scrollTo(0, 0)
+  }
+  const down = () => {
+    adjustUntil = 0
+    atBottom = true
+    pinned = true
+    setAtEnd(true)
+    window.scrollTo(0, document.documentElement.scrollHeight)
+  }
 
   createEffect(() => {
     const length = posts().length
     const previous = prevLength
     prevLength = length
     if (previous === 0 || length <= previous) return
-    if (document.visibilityState !== 'visible' || !atBottom) return
+    const resync = store.resyncSeq()
+    const missed = resync !== seenResync
+    seenResync = resync
+    if (missed || document.visibilityState !== 'visible') {
+      atBottom = false
+      pinned = false
+      setAtEnd(false)
+      lastMax = document.documentElement.scrollHeight - window.innerHeight
+      lastY = window.scrollY
+      return
+    }
+    if (!pinned && bottomReached()) pinned = true
+    if (!pinned) return
     requestAnimationFrame(() =>
       requestAnimationFrame(() => {
-        window.scrollTo(0, document.documentElement.scrollHeight)
-        atBottom = true
+        followUntil = performance.now() + 1000
+        window.scrollTo({ top: document.documentElement.scrollHeight, behavior: 'smooth' })
       }),
     )
   })
@@ -126,17 +187,14 @@ function ThreadBody(props: {
     posts()
     const composer = document.querySelector<HTMLElement>('[data-composer]')
     if (!composer) return
+    let height = composer.getBoundingClientRect().height
     const observer = new ResizeObserver(() => {
-      measure()
-      if (document.visibilityState !== 'visible' || !atBottom) return
-      const container = document.querySelector<HTMLElement>('[data-thread-scroll]')
-      if (!container) return
-      const list = container.querySelectorAll<HTMLElement>('article[data-post]')
-      const last = list[list.length - 1]
-      if (!last) return
-      const rect = last.getBoundingClientRect()
-      const composerTop = composer.getBoundingClientRect().top
-      if (rect.bottom - composerTop > 0 && rect.top < window.innerHeight) {
+      if (!pinned && bottomReached()) pinned = true
+      const next = composer.getBoundingClientRect().height
+      const delta = next - height
+      height = next
+      if (delta > 0 && pinned && followUntil === 0 && document.visibilityState === 'visible') {
+        adjustUntil = performance.now() + 200
         window.scrollTo(0, document.documentElement.scrollHeight)
       }
     })
@@ -161,7 +219,7 @@ function ThreadBody(props: {
           </Show>
         }
       />
-      <div data-thread-scroll="" class={mobile() ? listMobileVariants() : listVariants()}>
+      <div data-thread-scroll="" data-post-column="" class={mobile() ? listMobileVariants() : listVariants()}>
         <For each={posts()}>
           {(uid, index) => (
             <>

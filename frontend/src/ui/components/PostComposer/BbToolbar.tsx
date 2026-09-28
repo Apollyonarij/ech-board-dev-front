@@ -21,6 +21,7 @@ const BB_TAGS: BbTag[] = [
   { label: <sup>sup</sup>, tag: 'sup', titleKey: 'postForm.sup' },
   { label: <sub>sub</sub>, tag: 'sub', titleKey: 'postForm.sub' },
   { label: 'spoiler', tag: 'spoiler', titleKey: 'postForm.spoiler' },
+  { label: 'fold', tag: 'fold', titleKey: 'postForm.fold' },
   { label: 'url', tag: 'url', titleKey: 'postForm.url' },
   { label: 'code', tag: 'code', titleKey: 'postForm.code' },
   { label: 'secret', tag: 'secret', titleKey: 'postForm.secret' },

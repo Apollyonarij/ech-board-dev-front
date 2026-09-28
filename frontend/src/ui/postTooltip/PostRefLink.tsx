@@ -1,5 +1,7 @@
-import { type JSX } from 'solid-js'
+import { onCleanup, type JSX } from 'solid-js'
 import { usePostTooltip, type PostTooltipTarget } from './usePostTooltip'
+
+const OPEN_DELAY = 50
 
 export function PostRefLink(props: {
   label: JSX.Element
@@ -10,6 +12,14 @@ export function PostRefLink(props: {
 }) {
   const { open, isOpen } = usePostTooltip()
   const coarse = window.matchMedia('(pointer: coarse)').matches
+  let timer: number | null = null
+  const cancel = () => {
+    if (timer != null) {
+      window.clearTimeout(timer)
+      timer = null
+    }
+  }
+  onCleanup(cancel)
   return (
     <a
       class={props.class}
@@ -25,8 +35,15 @@ export function PostRefLink(props: {
         props.onClick?.(e)
       }}
       onMouseEnter={(e) => {
-        if (!coarse) open(e.currentTarget, props.target)
+        if (coarse) return
+        cancel()
+        const el = e.currentTarget
+        timer = window.setTimeout(() => {
+          timer = null
+          open(el, props.target)
+        }, OPEN_DELAY)
       }}
+      onMouseLeave={cancel}
     >
       {props.label}
     </a>

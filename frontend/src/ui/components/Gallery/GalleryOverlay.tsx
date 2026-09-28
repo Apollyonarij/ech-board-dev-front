@@ -18,14 +18,20 @@ const galleryMediaVariants = cva('pointer-events-auto max-h-full max-w-full touc
 const galleryBottomVariants = cva('pointer-events-none absolute inset-x-0 bottom-0 flex flex-col items-center gap-3')
 const galleryControlsVariants = cva('gap-3 px-4 opacity-0 transition-opacity duration-200')
 const galleryCtrlBtnVariants = cva('[&_svg]:size-4 [&_svg]:text-scrim-fg')
-const gallerySeekBarVariants = cva('relative h-1 w-seek flex-none cursor-pointer rounded-sm bg-track [touch-action:none] before:absolute before:-inset-y-2 before:inset-x-0 before:content-[""]')
+const gallerySeekBarVariants = cva('relative h-1 w-seek flex-none cursor-pointer rounded-sm bg-track [touch-action:none] before:absolute before:-inset-x-2.5 before:-inset-y-2 before:content-[""]')
 const gallerySeekFillVariants = cva('absolute inset-y-0 left-0 rounded-sm bg-scrim-fg')
 const galleryTimeVariants = cva('flex-none whitespace-nowrap text-sm text-scrim-fg [font-variant-numeric:tabular-nums]')
-const galleryVolWrapVariants = cva('relative flex flex-none items-center')
+const galleryVolWrapVariants = cva('relative flex flex-none items-center', {
+  variants: {
+    open: {
+      true: 'before:absolute before:inset-x-0 before:bottom-full before:h-25 before:content-[""]',
+    },
+  },
+})
 const galleryVolBarVariants = cva('absolute bottom-[calc(100%+8px)] left-1/2 w-1 -translate-x-1/2 cursor-pointer rounded-sm bg-track opacity-0 transition-all duration-200 [touch-action:none]', {
   variants: {
     open: {
-      true: 'h-volbar opacity-100',
+      true: 'h-volbar opacity-100 before:absolute before:-inset-x-4 before:-top-2 before:bottom-0 before:content-[""]',
       false: 'h-0',
     },
   },
@@ -51,7 +57,7 @@ const galleryThumbImgVariants = cva('size-full object-cover')
 const galleryThumbPlayVariants = cva('pointer-events-none absolute left-1/2 top-1/2 flex size-6 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-shade text-scrim-fg [&_svg]:ml-0.5 [&_svg]:size-3.5')
 const galleryThumbAudioVariants = cva('flex size-full items-center justify-center bg-bg text-fg [&_svg]:size-5')
 const galleryThumbPdfVariants = cva('flex size-full items-center justify-center bg-bg text-xs font-bold text-fg')
-const galleryPdfCardVariants = cva('pointer-events-auto flex max-h-full max-w-full flex-col items-center justify-center rounded-lg bg-panel1 px-10 py-8 text-2xl font-bold text-accent')
+const galleryPdfCardVariants = cva('pointer-events-auto flex max-h-full max-w-full flex-col items-center justify-center rounded-lg bg-panel1 px-10 py-8 text-2xl font-bold text-accent no-underline')
 
 const MUTED_KEY = 'ech-board-video-muted'
 const VOLUME_KEY = 'ech-board-video-volume'
@@ -902,7 +908,7 @@ export function GalleryOverlay(props: { items: GalleryItem[]; index: number; sou
               {fmtTime(displayTime())} / {fmtTime(vdur())}
             </span>
             <div
-              class={galleryVolWrapVariants()}
+              class={galleryVolWrapVariants({ open: volOpen() })}
               onMouseEnter={() => {
                 if (!mobile()) setVolOpen(true)
               }}

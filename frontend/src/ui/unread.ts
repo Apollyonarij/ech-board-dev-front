@@ -7,7 +7,7 @@ export interface ThreadUnread {
   align: () => void
 }
 
-export function createThreadUnread(total: Accessor<number>): ThreadUnread {
+export function createThreadUnread(total: Accessor<number>, reloadSeq: Accessor<number>): ThreadUnread {
   const [markerIndex, setMarkerIndex] = createSignal<number | null>(null)
   const [unreadCount, setUnreadCount] = createSignal(0)
   let readCount = 0
@@ -15,6 +15,7 @@ export function createThreadUnread(total: Accessor<number>): ThreadUnread {
   let hideTimer: number | null = null
   let scrollRaf: number | null = null
   let wasAtBottom = false
+  let seenReload = reloadSeq()
 
   const atBottom = () => {
     const max = document.documentElement.scrollHeight - window.innerHeight
@@ -51,6 +52,9 @@ export function createThreadUnread(total: Accessor<number>): ThreadUnread {
 
   createEffect(() => {
     const value = total()
+    const reload = reloadSeq()
+    const missed = reload !== seenReload
+    seenReload = reload
     if (value === 0) return
     const previous = prevTotal
     prevTotal = value
@@ -61,7 +65,7 @@ export function createThreadUnread(total: Accessor<number>): ThreadUnread {
       wasAtBottom = atBottom()
       return
     }
-    if (wasAtBottom && document.visibilityState === 'visible') {
+    if (!missed && wasAtBottom && document.visibilityState === 'visible') {
       readCount = value
       setUnreadCount(0)
       wasAtBottom = atBottom()

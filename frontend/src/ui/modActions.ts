@@ -19,13 +19,14 @@ import {
   SELF_MOD_WINDOW_MS,
 } from '../core/intent/capabilities'
 import type { BanScope } from '../core/intent/capabilities'
-import { fromHex, toHex, computeTweak, derivePostKeypair, sign } from '../core/intent/crypto'
+import { fromHex, toHex, derivePostKeypair, sign } from '../core/intent/crypto'
 import { parseBbCode, finalizeParts } from '../core/intent/bbcode'
 import { makePostResolver } from '../core/intent/resolver'
 import { matchPostsByAuthor } from '../core/intent/author'
 import { sendIntents, fetchBanHashes, fetchNonce } from '../core/api/relay'
 import { getSecretKeyBytes } from '../core/keys/storage'
 import type { RoleOption } from '../core/intent/roles'
+import { roleTweak, signable } from '../core/intent/roles'
 import type { EntityNs } from '../core/intent/upgrade'
 
 export interface ModEnv {
@@ -35,6 +36,7 @@ export interface ModEnv {
   boardUid: string
   slug?: string
   roles: RoleOption[]
+  rolesForThread: (threadUid: string) => RoleOption[]
   myTweaks: Map<string, Uint8Array>
   postByUid: (uidHex: string) => string | null
   onDone?: () => Promise<void> | void
@@ -115,7 +117,7 @@ export function createModActions(getEnv: () => ModEnv) {
     const ageMs = Date.now() - Number(pp.timestamp_ms())
     if (myTweak && ageMs <= SELF_MOD_WINDOW_MS) return { rawTweak: myTweak } as RoleOption
     const role = roleForPostAction('edit', env.roles)
-    if (!role || !role.tweakArgs) throw new Error('no role for post action')
+    if (!signable(role)) throw new Error('no role for post action')
     return role
   }
 
@@ -180,7 +182,7 @@ export function createModActions(getEnv: () => ModEnv) {
       async () => {
         const env = getEnv()
         const role = roleForPostAction('unban_media', env.roles)
-        if (!role || !role.tweakArgs) throw new Error('no role for unban media')
+        if (!signable(role)) throw new Error('no role for unban media')
         const builder = createIntentBuilder({ forumId: env.forumId, nonceShardsId: env.nonceShardsId, relayUrl: env.relayUrl })
           .event(PostEvent.unbanMedia(hashes.map((h) => new Uint8Array(h))))
           .board(fromHex(env.boardUid))
@@ -196,10 +198,10 @@ export function createModActions(getEnv: () => ModEnv) {
   const banPost = async (post: PostObject, threadUid: string, scope: BanScope, mask: number, durationMs: number, reason: string) => {
     const env = getEnv()
     const role = roleForBan(scope, env.roles)
-    if (!role || !role.tweakArgs) throw new Error(`no role for ${scope} ban`)
+    if (!signable(role)) throw new Error(`no role for ${scope} ban`)
     const masterSecret = getSecretKeyBytes()
     const forumIdBytes = fromHex(env.forumId)
-    const tweak = computeTweak(...role.tweakArgs)
+    const tweak = roleTweak(role)
     const { secretKey, publicKey } = derivePostKeypair(masterSecret, forumIdBytes, tweak)
     const vars = banScopeVars(scope, env.forumId, env.boardUid, threadUid, toHex(post.root.id), durationMs, reason)
     const event = await buildBanEvent(new PostProjection(post.projection).uid(), scope, mask, vars, secretKey, publicKey, env.relayUrl)
@@ -216,10 +218,10 @@ export function createModActions(getEnv: () => ModEnv) {
   const banUid = async (uidHex: string, threadUid: string, scope: BanScope, mask: number, durationMs: number, reason: string) => {
     const env = getEnv()
     const role = roleForBan(scope, env.roles)
-    if (!role || !role.tweakArgs) throw new Error(`no role for ${scope} ban`)
+    if (!signable(role)) throw new Error(`no role for ${scope} ban`)
     const masterSecret = getSecretKeyBytes()
     const forumIdBytes = fromHex(env.forumId)
-    const tweak = computeTweak(...role.tweakArgs)
+    const tweak = roleTweak(role)
     const { secretKey, publicKey } = derivePostKeypair(masterSecret, forumIdBytes, tweak)
     const postUid = scope === 'thread' ? env.postByUid(uidHex) : null
     if (scope === 'thread' && postUid === null) throw new Error('uid not found in this thread')
@@ -246,7 +248,7 @@ export function createModActions(getEnv: () => ModEnv) {
     const env = getEnv()
     const targets = posts.filter((p) => !new PostProjection(p.projection).deleted())
     const role = roleForPostAction('delete', env.roles)
-    if (!role || !role.tweakArgs) throw new Error('no role for batch delete')
+    if (!signable(role)) throw new Error('no role for batch delete')
     const sender = toHex(
       createIntentBuilder({ forumId: env.forumId, nonceShardsId: env.nonceShardsId, relayUrl: env.relayUrl })
         .board(fromHex(env.boardUid))
@@ -279,7 +281,7 @@ export function createModActions(getEnv: () => ModEnv) {
     const env = getEnv()
     const targets = posts.filter((p) => new PostProjection(p.projection).deleted())
     const role = roleForPostAction('restore', env.roles)
-    if (!role || !role.tweakArgs) throw new Error('no role for batch restore')
+    if (!signable(role)) throw new Error('no role for batch restore')
     const sender = toHex(
       createIntentBuilder({ forumId: env.forumId, nonceShardsId: env.nonceShardsId, relayUrl: env.relayUrl })
         .board(fromHex(env.boardUid))
@@ -319,10 +321,10 @@ export function createModActions(getEnv: () => ModEnv) {
   ) => {
     const env = getEnv()
     const role = roleForBan(scope, env.roles)
-    if (!role || !role.tweakArgs) throw new Error(`no role for ${scope} ban`)
+    if (!signable(role)) throw new Error(`no role for ${scope} ban`)
     const masterSecret = getSecretKeyBytes()
     const forumIdBytes = fromHex(env.forumId)
-    const tweak = computeTweak(...role.tweakArgs)
+    const tweak = roleTweak(role)
     const { secretKey, publicKey } = derivePostKeypair(masterSecret, forumIdBytes, tweak)
     const sender = toHex(publicKey).replace(/^0x/, '')
     let done = 0
@@ -356,7 +358,7 @@ export function createModActions(getEnv: () => ModEnv) {
         const banned = new PostProjection(post.projection).banned()
         if (!banned) throw new Error('post is not banned')
         const role = roleForBan(scope, env.roles)
-        if (!role || !role.tweakArgs) throw new Error(`no role for ${scope} unban`)
+        if (!signable(role)) throw new Error(`no role for ${scope} unban`)
         const event =
           scope === 'forum'
             ? ForumEvent.unbanUser(banned.level, banned.mask, banned.ip_hash)
@@ -385,8 +387,8 @@ export function createModActions(getEnv: () => ModEnv) {
           : action === 'delete'
             ? ThreadEvent.setDeleted(true)
             : ThreadEvent.setDeleted(false)
-    const role = roleForThreadAction(action, env.roles)
-    if (!role || !role.tweakArgs) throw new Error(`no role for ${action}`)
+    const role = roleForThreadAction(action, env.rolesForThread(threadUid))
+    if (!signable(role)) throw new Error(`no role for ${action}`)
     const builder = createIntentBuilder({ forumId: env.forumId, nonceShardsId: env.nonceShardsId, relayUrl: env.relayUrl })
       .event(desc)
       .board(fromHex(env.boardUid))
@@ -401,8 +403,8 @@ export function createModActions(getEnv: () => ModEnv) {
   const runThreadCloseDelete = (threadUid: string) =>
     runAction(async () => {
       const env = getEnv()
-      const role = roleForThreadAction('delete', env.roles)
-      if (!role || !role.tweakArgs) throw new Error('no role for close/delete')
+      const role = roleForThreadAction('delete', env.rolesForThread(threadUid))
+      if (!signable(role)) throw new Error('no role for close/delete')
       const sender = toHex(
         createIntentBuilder({ forumId: env.forumId, nonceShardsId: env.nonceShardsId, relayUrl: env.relayUrl })
           .board(fromHex(env.boardUid))
@@ -430,8 +432,8 @@ export function createModActions(getEnv: () => ModEnv) {
       const env = getEnv()
       const topicText = topic.trim()
       const topicHash = topicText ? blake2b(new TextEncoder().encode(topicText), { dkLen: 32 }) : null
-      const role = roleForThreadAction('edit_topic', env.roles)
-      if (!role || !role.tweakArgs) throw new Error('no role for edit_topic')
+      const role = roleForThreadAction('edit_topic', env.rolesForThread(threadUid))
+      if (!signable(role)) throw new Error('no role for edit_topic')
       const builder = createIntentBuilder({ forumId: env.forumId, nonceShardsId: env.nonceShardsId, relayUrl: env.relayUrl })
         .event(ThreadEvent.setTopic(topicHash))
         .board(fromHex(env.boardUid))
@@ -475,7 +477,7 @@ export function createModActions(getEnv: () => ModEnv) {
   ) =>
     runAction(async () => {
       const env = getEnv()
-      if (!role || !role.tweakArgs) throw new Error('no role for action')
+      if (!signable(role)) throw new Error('no role for action')
       let builder = createIntentBuilder({ forumId: env.forumId, nonceShardsId: env.nonceShardsId, relayUrl: env.relayUrl })
         .event(desc)
         .board(fromHex(boardUidArg ?? env.boardUid))
@@ -513,19 +515,19 @@ export function createModActions(getEnv: () => ModEnv) {
   const runBoardDelete = (boardUidArg: string, v: boolean) => runIntent(BoardEvent.setDeleted(v), roleForBoardCore(getEnv().roles), null, undefined, boardUidArg)
 
   const runThreadSetAdmin = (threadUid: string, addr: Uint8Array | null) =>
-    runIntent(ThreadEvent.setAdmin(addr), roleForThreadAdminMgmt(getEnv().roles), threadUid)
+    runIntent(ThreadEvent.setAdmin(addr), roleForThreadAdminMgmt(getEnv().rolesForThread(threadUid)), threadUid)
 
   const runThreadAddModerator = (threadUid: string, addr: Uint8Array) =>
-    runIntent(ThreadEvent.addModerator(addr), roleForThreadAdminMgmt(getEnv().roles), threadUid)
+    runIntent(ThreadEvent.addModerator(addr), roleForThreadAdminMgmt(getEnv().rolesForThread(threadUid)), threadUid)
 
   const runThreadDelModerator = (threadUid: string, addr: Uint8Array) =>
-    runIntent(ThreadEvent.delModerator(addr), roleForThreadAdminMgmt(getEnv().roles), threadUid)
+    runIntent(ThreadEvent.delModerator(addr), roleForThreadAdminMgmt(getEnv().rolesForThread(threadUid)), threadUid)
 
   const findAuthorPosts = (ref: PostObject, posts: PostObject[], threadUid: string, onProgress?: (done: number, total: number) => void): Promise<string[]> => {
     const env = getEnv()
     const role = roleForBan('thread', env.roles)
-    if (!role || !role.tweakArgs) throw new Error('no role for author match')
-    const { secretKey, publicKey } = derivePostKeypair(getSecretKeyBytes(), fromHex(env.forumId), computeTweak(...role.tweakArgs))
+    if (!signable(role)) throw new Error('no role for author match')
+    const { secretKey, publicKey } = derivePostKeypair(getSecretKeyBytes(), fromHex(env.forumId), roleTweak(role))
     return matchPostsByAuthor({
       relayUrl: env.relayUrl,
       pathHex: [env.forumId, env.boardUid, threadUid],

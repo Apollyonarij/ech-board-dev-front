@@ -11,51 +11,61 @@ import type { Accessor } from 'solid-js'
 
 export interface Entry {
   id: number
-  depth: number
   anchor: HTMLElement
   target: PostTooltipTarget
   result: Accessor<TooltipPost | null>
   error: Accessor<boolean>
 }
 
-const CASCADE_STEP = 16
-
-const tooltipLayerVariants = cva('absolute z-tooltip w-max', {
+const tooltipLayerVariants = cva('absolute z-tooltip w-max transition-opacity duration-[150ms]', {
   variants: {
     hidden: {
       true: 'invisible',
     },
+    shown: {
+      true: 'opacity-100',
+      false: 'opacity-0',
+    },
+    closing: {
+      true: 'pointer-events-none',
+    },
   },
 })
 const tooltipLoadingVariants = cva('h-6 w-tooltip')
+const TOOLTIP_OFFSET_X = 24
 
-export function TooltipLayer(props: { entry: Entry; register: (el: HTMLElement | null) => void; boardPage?: boolean }) {
+export function TooltipLayer(props: {
+  entry: Entry
+  register: (el: HTMLElement | null) => void
+  boardPage?: boolean
+  closing?: Accessor<boolean>
+}) {
   const actions = useEntityActions()
   const store = useStore()
   let root: HTMLDivElement | undefined
   const [pos, setPos] = createSignal<{ left: number; top: number } | null>(null)
   const [reactionsRev, setReactionsRev] = createSignal(0)
+  const [shown, setShown] = createSignal(false)
+  const enter = requestAnimationFrame(() => requestAnimationFrame(() => setShown(true)))
 
+  onCleanup(() => cancelAnimationFrame(enter))
   onCleanup(store.subscribeReactions(() => setReactionsRev((value) => value + 1)))
 
   const edges = (el: HTMLElement) => {
     const content = el.firstElementChild instanceof HTMLElement ? el.firstElementChild : el
     const tr = content.getBoundingClientRect()
     let bottom = tr.bottom
+    let right = tr.right
     for (const over of el.querySelectorAll<HTMLElement>('[data-overhang]')) {
-      bottom = Math.max(bottom, over.getBoundingClientRect().bottom)
+      const r = over.getBoundingClientRect()
+      bottom = Math.max(bottom, r.bottom)
+      right = Math.max(right, r.right)
     }
-    return { tr, bottom }
+    return { tr, bottom, right }
   }
 
   const wall = () => {
-    let column: HTMLElement | null = null
-    for (const post of document.querySelectorAll<HTMLElement>('[data-post]')) {
-      if (post.closest('[data-tooltip-layer]')) continue
-      column = post.parentElement
-      break
-    }
-    const el = column ?? document.querySelector('main')
+    const el = document.querySelector<HTMLElement>('[data-post-column]') ?? document.querySelector('main')
     if (!el) return { left: 0, right: window.innerWidth }
     const r = el.getBoundingClientRect()
     const cs = getComputedStyle(el)
@@ -67,22 +77,22 @@ export function TooltipLayer(props: { entry: Entry; register: (el: HTMLElement |
     const el = root
     const ar = props.entry.anchor.getBoundingClientRect()
     const { left: wallLeft, right: wallRight } = wall()
+    const { tr, bottom, right } = edges(el)
+    const width = tr.width
+    const overhang = Math.max(0, right - tr.right)
     const maxWidthCss = `min(var(--post-max-w), ${Math.max(0, wallRight - wallLeft)}px)`
     if (el.style.maxWidth !== maxWidthCss) el.style.maxWidth = maxWidthCss
-    const { tr, bottom } = edges(el)
-    const width = tr.width
-    const contentHeight = tr.height
     const outerHeight = bottom - tr.top
     const header = [...document.querySelectorAll<HTMLElement>('[data-page-header]')].find((h) => h.offsetHeight > 0)
     const topLimit = header ? header.getBoundingClientRect().bottom + 8 : 8
-    let bottomLimit = Math.min(window.innerHeight, wallRight) - 8
+    let bottomLimit = window.innerHeight - 8
     for (const b of document.querySelectorAll<HTMLElement>('[data-composer], [data-tabs]')) {
       if (b.offsetHeight === 0) continue
       const r = b.getBoundingClientRect()
       if (r.top > topLimit && r.top < bottomLimit) bottomLimit = r.top
     }
-    const top = ar.bottom + outerHeight > bottomLimit ? ar.top - contentHeight : ar.bottom
-    const left = Math.max(wallLeft, Math.min(ar.left + props.entry.depth * CASCADE_STEP, Math.max(wallLeft, wallRight - width)))
+    const top = ar.bottom + outerHeight > bottomLimit ? ar.top - outerHeight : ar.bottom
+    const left = Math.max(wallLeft, Math.min(ar.left + TOOLTIP_OFFSET_X, wallRight - width - overhang))
     setPos({ left: left + window.scrollX, top: top + window.scrollY })
   }
 
@@ -97,7 +107,7 @@ export function TooltipLayer(props: { entry: Entry; register: (el: HTMLElement |
     reactionsRev()
     const res = props.entry.result()
     if (!res) return null
-    return previewRecord(res, actions.roleKinds(), store.pendingReactionOf(props.entry.target.postUid))
+    return previewRecord(res, actions.roleKinds(), store.pendingReactionOf(props.entry.target.postUid), store.ordinalOf(props.entry.target.postUid))
   })
 
   const slug = () => props.entry.result()?.slug
@@ -119,11 +129,15 @@ export function TooltipLayer(props: { entry: Entry; register: (el: HTMLElement |
       ref={(el) => {
         root = el
         props.register(el)
-        if (el) observer.observe(el)
+        if (el) {
+          observer.observe(el)
+          const parent = props.entry.anchor.closest<HTMLElement>('[data-tooltip-layer]')
+          if (parent) observer.observe(parent)
+        }
         measure()
       }}
       data-tooltip-layer=""
-      class={tooltipLayerVariants({ hidden: !pos() })}
+      class={tooltipLayerVariants({ hidden: !pos(), shown: shown() && !props.closing?.(), closing: props.closing?.() })}
       style={pos() ? { left: `${pos()!.left}px`, top: `${pos()!.top}px` } : undefined}
     >
       <Show when={record()} fallback={<div class={tooltipLoadingVariants()} />}>
@@ -140,8 +154,8 @@ export function TooltipLayer(props: { entry: Entry; register: (el: HTMLElement |
             threadBroom={broom()}
             slug={slug()}
             threadNum={threadNum()}
+            boardPage={props.boardPage}
             tooltip
-            menu={false}
           />
         )}
       </Show>

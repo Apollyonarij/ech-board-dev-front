@@ -5,7 +5,7 @@ import { useStore } from '../store'
 import { usePostSelection } from '../postSelection/PostSelectionProvider'
 import { threadModItems } from '../threadModItems'
 import type { PostRecord } from '../../store/records'
-import { canSelectAllFromAuthor, type BanScope } from '../../core/intent/capabilities'
+import { canSelectAllFromAuthor, canBanByUid, type BanScope } from '../../core/intent/capabilities'
 import type { ThreadObject } from '../../core/bcs/types'
 
 export function PostMenu(props: { record: PostRecord; closed: boolean; threadObject?: ThreadObject; onEdit?: (uid: string) => void }) {
@@ -19,16 +19,16 @@ export function PostMenu(props: { record: PostRecord; closed: boolean; threadObj
     if (props.onEdit && rec.canEdit) result.push({ label: t('mod.edit'), onClick: () => props.onEdit?.(rec.uid) })
     const author = (): MenuItem => ({ label: t('mod.selectAllFromAuthor'), onClick: () => selection?.selectAllFromAuthor(rec.post, rec.threadUid) })
     if (rec.op) {
-      result.push(...threadModItems(t, actions, { threadUid: props.record.uid, closed: props.closed, deleted: rec.deleted }))
-      result.push({ label: t('mod.moderators'), onClick: () => actions.openThreadModerators() })
-      result.push({ label: t('mod.bans'), onClick: () => actions.openBans(t('mod.bans'), rec.uid) })
-      if (actions.canBanAny()) result.push({ label: t('mod.banUid'), onClick: () => actions.openBanUid() })
+      result.push(...threadModItems(t, actions, { threadUid: rec.threadUid, closed: props.closed, deleted: rec.deleted }))
+      result.push({ label: t('mod.moderators'), onClick: () => actions.openThreadModerators(rec.threadUid) })
+      result.push({ label: t('mod.bans'), onClick: () => actions.openBans(t('mod.bans'), rec.threadUid) })
+      if (actions.canBanAny() && canBanByUid(actions.roleKinds())) result.push({ label: t('mod.banUid'), onClick: () => actions.openBanUid() })
       if (selection?.canSelect() && canSelectAllFromAuthor(actions.roleKinds())) result.push(author())
       result.push({ label: t('mod.debugThread'), onClick: () => actions.openLogs('thread', props.threadObject) })
+      result.push({ label: t('mod.debugPost'), onClick: () => actions.openLogs('post', rec.post) })
       return result
     }
-    const threadUid = store.threadUid()
-    if (!threadUid) return result
+    const threadUid = rec.threadUid
     if (rec.canDelete) result.push({ label: t('mod.delete'), onClick: () => actions.runPostDelete(rec.post, threadUid, 'delete') })
     if (rec.canRestore) result.push({ label: t('mod.restore'), onClick: () => actions.runPostDelete(rec.post, threadUid, 'restore') })
     if (actions.canBanAny() && !rec.deleted && !rec.banned) {

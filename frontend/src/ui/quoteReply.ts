@@ -11,7 +11,14 @@ function tagOf(el: Element): string | null {
   if (t === 'PRE') return 'code'
   if (el.classList.contains('post-spoiler')) return 'spoiler'
   if (el.classList.contains('post-overline')) return 'o'
+  const fold = el.getAttribute('data-fold-title')
+  if (fold !== null) return `fold=${fold}`
   return null
+}
+
+function closeTag(tag: string): string {
+  const eq = tag.indexOf('=')
+  return eq === -1 ? tag : tag.slice(0, eq)
 }
 
 function textNodesInRange(range: Range): Text[] {
@@ -57,7 +64,7 @@ function selectionToBb(sel: Selection): string {
     }
     for (const run of runs) {
       const opens = run.tags.map((t) => `[${t}]`).join('')
-      const closes = [...run.tags].reverse().map((t) => `[/${t}]`).join('')
+      const closes = [...run.tags].reverse().map((t) => `[/${closeTag(t)}]`).join('')
       out.push(opens + run.text + closes)
     }
   }

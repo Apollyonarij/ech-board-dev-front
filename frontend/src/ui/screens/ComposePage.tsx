@@ -9,7 +9,7 @@ import { useIsMobile } from '../components/Gallery/useIsMobile'
 import { useNav } from '../nav'
 
 const viewSectionVariants = cva('flex min-h-screen min-w-0 flex-col')
-const screenVariants = cva('flex min-h-dvh flex-col bg-bg')
+const screenVariants = cva('flex min-h-dvh flex-col')
 const backBtnVariants = cva('px-1 py-2 hover:bg-hover')
 const threadContentVariants = cva('pl-4')
 

@@ -33,6 +33,7 @@ const THEME_KEY = 'ech-board-theme'
 const APPEARANCE_KEY = 'ech-board-appearance'
 const SHOW_DELETED_KEY = 'ech-board-show-deleted'
 const HIDE_THREADS_KEY = 'ech-board-hide-threads'
+const EXPAND_FOLDS_KEY = 'ech-board-expand-folds'
 
 function readString(key: string): string | null {
   try {
@@ -73,6 +74,8 @@ export interface I18nValue {
   setShowDeleted: (v: boolean) => void
   hideThreadsCompletely: Accessor<boolean>
   setHideThreadsCompletely: (v: boolean) => void
+  expandFolds: Accessor<boolean>
+  setExpandFolds: (v: boolean) => void
   t: (key: MessageKey, vars?: Record<string, string | number>) => string
   days: Accessor<readonly string[]>
   months: Accessor<readonly string[]>
@@ -96,6 +99,7 @@ export function I18nProvider(props: { children: JSX.Element }) {
   const [appearance, setAppearanceSignal] = createSignal<string>(initialAppearance())
   const [showDeleted, setShowDeleted] = boolPref(SHOW_DELETED_KEY, false)
   const [hideThreadsCompletely, setHideThreadsCompletely] = boolPref(HIDE_THREADS_KEY, false)
+  const [expandFolds, setExpandFolds] = boolPref(EXPAND_FOLDS_KEY, false)
 
   const setLang = (value: Lang) => {
     writeString(LANG_KEY, value)
@@ -162,6 +166,8 @@ export function I18nProvider(props: { children: JSX.Element }) {
     setShowDeleted,
     hideThreadsCompletely,
     setHideThreadsCompletely,
+    expandFolds,
+    setExpandFolds,
     t,
     days: () => dicts[lang()].days,
     months: () => dicts[lang()].months,

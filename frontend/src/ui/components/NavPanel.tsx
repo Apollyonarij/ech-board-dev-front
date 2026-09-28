@@ -49,7 +49,7 @@ const forumItemSubVariants = cva('mt-0.5 text-sm text-secondary')
 const forumItemCheckVariants = cva('text-lg text-accent')
 const sectionLabelVariants = cva('px-4 pb-1.5 pt-2.5 text-sm uppercase tracking-wider text-secondary collapsed:hidden')
 const navListVariants = cva('px-2 collapsed:flex collapsed:w-full collapsed:flex-col collapsed:items-center collapsed:px-1')
-const navItemVariants = cva('grid cursor-pointer grid-cols-[44px_1fr_auto] items-center gap-1.5 px-2 py-2.5 rounded-md collapsed:flex collapsed:w-full collapsed:justify-center collapsed:py-2.5 hover:bg-hover', {
+const navItemVariants = cva('grid cursor-pointer grid-cols-[44px_1fr_auto] items-center gap-1.5 px-2 py-2.5 rounded-md collapsed:flex collapsed:w-full collapsed:justify-center collapsed:py-2.5 hover:bg-hover no-underline', {
   variants: {
     active: {
       true: 'bg-active',

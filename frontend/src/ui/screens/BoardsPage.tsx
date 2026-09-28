@@ -14,7 +14,7 @@ import { boardPath } from '../route'
 import type { BoardInfo, ForumInfo } from '../../core/views'
 
 const pageVariants = cva('flex min-h-screen min-w-0 flex-col')
-const screenVariants = cva('flex min-h-dvh flex-col bg-bg')
+const screenVariants = cva('flex min-h-dvh flex-col')
 const chipsRowVariants = cva('flex items-center gap-2 overflow-x-auto px-4 pb-2.5 pt-0.5 [scrollbar-width:none]')
 const chipVariants = cva('flex cursor-pointer items-center gap-1.5 whitespace-nowrap rounded-md px-2.5 py-2 text-sm', {
   variants: {
@@ -28,7 +28,7 @@ const chipVariants = cva('flex cursor-pointer items-center gap-1.5 whitespace-no
 const chipLogoVariants = cva('inline-flex h-logo-mobile items-center')
 const contentPadVariants = cva('pl-[calc(1rem+env(safe-area-inset-left,0px))] pr-[calc(1rem+env(safe-area-inset-right,0px))] pb-[calc(var(--mobile-tab)+18px)] pt-2.5')
 const listVariants = cva('overflow-hidden rounded-lg bg-panel1')
-const rowVariants = cva('mx-4 grid min-h-row cursor-pointer grid-cols-[64px_1fr_auto_auto] items-center gap-2 border-b border-separator py-2.5 text-fg no-underline last:border-b-0')
+const rowVariants = cva('mx-4 grid min-h-row cursor-pointer grid-cols-[64px_1fr_auto_auto] items-center gap-2 border-b border-separator py-2.5 text-fg last:border-b-0 no-underline')
 const slugVariants = cva('text-xl font-semibold text-accent leading-none')
 const nameVariants = cva('text-xl text-fg leading-none')
 const countVariants = cva('text-sm text-secondary leading-none')

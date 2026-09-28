@@ -4,7 +4,7 @@ import { useStore } from './store'
 import { postUid } from '../core/posts'
 import { PostProjection } from '../core/bcs/types'
 import { toHex } from '../core/intent/crypto'
-import type { RoleOption } from '../core/intent/roles'
+import { withThreadRoles, type RoleOption } from '../core/intent/roles'
 
 const ModCtx = createContext<ModActions>()
 
@@ -19,6 +19,7 @@ export function ModProvider(props: { roles: RoleOption[]; onError: (e: unknown) 
       relayUrl: info.relayUrl,
       boardUid: info.boardUid,
       roles: props.roles,
+      rolesForThread: (threadUid) => withThreadRoles(props.roles, store.rolesForThread(threadUid)),
       myTweaks: ctx.myAuthorTweaks,
       postByUid: (uidHex) => {
         for (const uid of store.postsOf(true)) {

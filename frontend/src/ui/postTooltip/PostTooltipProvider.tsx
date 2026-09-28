@@ -13,14 +13,17 @@ export function PostTooltipProvider(props: {
   children: JSX.Element
 }) {
   const [entries, setEntries] = createSignal<Entry[]>([])
+  const [fading, setFading] = createSignal<ReadonlySet<number>>(new Set())
   let current: Entry[] = []
   let closeTimer: number | null = null
   let lastMove: PointerEvent | null = null
   const elements = new Map<number, HTMLElement>()
+  const fadeTimers = new Set<number>()
 
   const update = (next: Entry[]) => {
     current = next
-    setEntries(next)
+    const live = new Set(next.map((entry) => entry.id))
+    setEntries(entries().filter((entry) => !live.has(entry.id)).concat(next))
   }
 
   const clearClose = () => {
@@ -30,8 +33,27 @@ export function PostTooltipProvider(props: {
     }
   }
 
+  const fade = (removed: Entry[]) => {
+    if (removed.length === 0) return
+    const el = elements.get(removed[0].id)
+    const ms = el ? parseFloat(getComputedStyle(el).transitionDuration) * 1000 : 0
+    const ids = removed.map((entry) => entry.id)
+    setFading((prev) => new Set([...prev, ...ids]))
+    const timer = window.setTimeout(() => {
+      fadeTimers.delete(timer)
+      setEntries((list) => list.filter((entry) => !ids.includes(entry.id)))
+      setFading((prev) => {
+        const next = new Set(prev)
+        for (const id of ids) next.delete(id)
+        return next
+      })
+    }, ms)
+    fadeTimers.add(timer)
+  }
+
   const closeAll = () => {
     clearClose()
+    fade(current)
     elements.clear()
     update([])
   }
@@ -49,8 +71,13 @@ export function PostTooltipProvider(props: {
     }
     const [result, setResult] = createSignal<TooltipPost | null>(null)
     const [error, setError] = createSignal(false)
-    const entry: Entry = { id: nextId++, depth: nested ? current.length : 0, anchor, target, result, error }
-    update(nested ? [...current, entry] : [entry])
+    const entry: Entry = { id: nextId++, anchor, target, result, error }
+    if (nested) {
+      update([...current, entry])
+    } else {
+      fade(current)
+      update([entry])
+    }
     props
       .resolve(target.postUid)
       .then((value) => {
@@ -83,30 +110,39 @@ export function PostTooltipProvider(props: {
     return deepestKept
   }
 
+  const truncate = (keep: number) => {
+    if (keep === 0) {
+      closeAll()
+      return
+    }
+    if (keep >= current.length) return
+    const removed = current.slice(keep)
+    fade(removed)
+    for (const entry of removed) elements.delete(entry.id)
+    update(current.slice(0, keep))
+  }
+
   const keepUnder = (e: PointerEvent, delayed: boolean): boolean => {
     if (current.length === 0) {
       clearClose()
       return false
     }
     const deepestKept = deepestUnder(e)
-    if (deepestKept === -1) {
-      if (!delayed) {
-        closeAll()
-        return false
-      }
-      if (closeTimer == null) {
-        closeTimer = window.setTimeout(() => {
-          closeTimer = null
-          if (lastMove && deepestUnder(lastMove) !== -1) return
-          closeAll()
-        }, LEAVE_DELAY)
-      }
+    const keep = deepestKept === -1 ? 0 : deepestKept + 1
+    if (keep === current.length) {
+      clearClose()
       return true
     }
-    clearClose()
-    if (deepestKept < current.length - 1) {
-      for (let i = deepestKept + 1; i < current.length; i++) elements.delete(current[i].id)
-      update(current.slice(0, deepestKept + 1))
+    if (!delayed) {
+      truncate(keep)
+      return keep > 0
+    }
+    if (closeTimer == null) {
+      closeTimer = window.setTimeout(() => {
+        closeTimer = null
+        const deepest = lastMove ? deepestUnder(lastMove) : -1
+        truncate(deepest === -1 ? 0 : deepest + 1)
+      }, LEAVE_DELAY)
     }
     return true
   }
@@ -124,6 +160,7 @@ export function PostTooltipProvider(props: {
   document.addEventListener('pointerdown', onDown, true)
   onCleanup(() => {
     clearClose()
+    for (const timer of fadeTimers) window.clearTimeout(timer)
     document.removeEventListener('pointermove', onMove, true)
     document.removeEventListener('pointerdown', onDown, true)
   })
@@ -138,7 +175,9 @@ export function PostTooltipProvider(props: {
               <TooltipLayer
                 entry={entry}
                 boardPage={props.boardPage}
+                closing={() => fading().has(entry.id)}
                 register={(el) => {
+                  if (fading().has(entry.id)) return
                   if (el) elements.set(entry.id, el)
                   else elements.delete(entry.id)
                 }}

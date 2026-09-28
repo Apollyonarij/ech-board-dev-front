@@ -18,6 +18,8 @@ export function AppearanceView() {
     setShowDeleted,
     hideThreadsCompletely,
     setHideThreadsCompletely,
+    expandFolds,
+    setExpandFolds,
     appearance,
     setAppearance,
   } = useI18n()
@@ -37,7 +39,10 @@ export function AppearanceView() {
           role="checkbox"
           aria-checked={showDeleted()}
           class={toggleWrapVariants()}
-          onClick={() => setShowDeleted(!showDeleted())}
+          onClick={(e) => {
+            e.preventDefault()
+            setShowDeleted(!showDeleted())
+          }}
         >
           <input type="checkbox" class={toggleVariants()} checked={showDeleted()} readOnly />
         </span>
@@ -49,9 +54,27 @@ export function AppearanceView() {
           role="checkbox"
           aria-checked={!hideThreadsCompletely()}
           class={toggleWrapVariants()}
-          onClick={() => setHideThreadsCompletely(!hideThreadsCompletely())}
+          onClick={(e) => {
+            e.preventDefault()
+            setHideThreadsCompletely(!hideThreadsCompletely())
+          }}
         >
           <input type="checkbox" class={toggleVariants()} checked={!hideThreadsCompletely()} readOnly />
+        </span>
+      </label>
+      <label class={settingRowVariants()}>
+        <span>{t('settings.expandFolds')}</span>
+        <span
+          ref={(el) => haptic(el)}
+          role="checkbox"
+          aria-checked={expandFolds()}
+          class={toggleWrapVariants()}
+          onClick={(e) => {
+            e.preventDefault()
+            setExpandFolds(!expandFolds())
+          }}
+        >
+          <input type="checkbox" class={toggleVariants()} checked={expandFolds()} readOnly />
         </span>
       </label>
       <div class={settingRowVariants()}>

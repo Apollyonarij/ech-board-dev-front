@@ -1,4 +1,4 @@
-import type { RoleKind, RoleOption } from './roles'
+import { signable, type RoleKind, type RoleOption } from './roles'
 
 export type PostAction = 'delete' | 'restore' | 'edit' | 'ban_media' | 'unban_media'
 export type ThreadAction = 'close' | 'open' | 'delete' | 'restore' | 'pin' | 'unpin' | 'edit_topic'
@@ -40,14 +40,18 @@ export function canSelectAllFromAuthor(roles: RoleKind[]): boolean {
   return hasRole(roles, BOARD_MOD_ROLES)
 }
 
+export function canBanByUid(roles: RoleKind[]): boolean {
+  return hasRole(roles, BOARD_MOD_ROLES)
+}
+
 export function roleForPostAction(action: PostAction, options: RoleOption[]): RoleOption | null {
   const allowed = POST_ACTION_ROLES[action]
-  return options.find(o => allowed.includes(o.kind) && o.tweakArgs) ?? null
+  return options.find(o => allowed.includes(o.kind) && signable(o)) ?? null
 }
 
 export function roleForThreadAction(action: ThreadAction, options: RoleOption[]): RoleOption | null {
   const allowed = THREAD_ACTION_ROLES[action]
-  return options.find(o => allowed.includes(o.kind) && o.tweakArgs) ?? null
+  return options.find(o => allowed.includes(o.kind) && signable(o)) ?? null
 }
 
 export type BanScope = 'forum' | 'board' | 'thread'
@@ -64,7 +68,7 @@ export function canBan(scope: BanScope, roles: RoleKind[]): boolean {
 
 export function roleForBan(scope: BanScope, options: RoleOption[]): RoleOption | null {
   const allowed = BAN_SCOPE_ROLES[scope]
-  return options.find(o => allowed.includes(o.kind) && o.tweakArgs) ?? null
+  return options.find(o => allowed.includes(o.kind) && signable(o)) ?? null
 }
 
 export function canBanAny(roles: RoleKind[]): boolean {
@@ -89,7 +93,7 @@ export function canThreadPin(roles: RoleKind[]): boolean {
 }
 
 function roleFor(options: RoleOption[], allowed: RoleKind[]): RoleOption | null {
-  return options.find(o => allowed.includes(o.kind) && o.tweakArgs) ?? null
+  return options.find(o => allowed.includes(o.kind) && signable(o)) ?? null
 }
 
 export function roleForForumSettings(options: RoleOption[]): RoleOption | null {

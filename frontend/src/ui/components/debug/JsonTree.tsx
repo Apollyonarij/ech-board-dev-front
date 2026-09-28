@@ -1,6 +1,6 @@
 import { For, Show } from 'solid-js'
 import { cva } from 'class-variance-authority'
-import { toHex } from '../../../core/intent/crypto'
+import { toHex, senderAddress } from '../../../core/intent/crypto'
 
 const valueVariants = cva('break-all text-secondary')
 const contentsVariants = cva('contents')
@@ -16,8 +16,10 @@ export function formatValue(v: unknown): unknown {
   if (typeof v === 'bigint') return v.toString()
   if (Array.isArray(v)) return v.map(formatValue)
   if (v != null && typeof v === 'object') {
+    const source = v as Record<string, unknown>
     const out: Record<string, unknown> = {}
-    for (const k of Object.keys(v)) out[k] = formatValue((v as Record<string, unknown>)[k])
+    for (const k of Object.keys(source)) out[k] = formatValue(source[k])
+    if (source.pk instanceof Uint8Array && source.tweak instanceof Uint8Array) out.address = toHex(senderAddress(source.pk))
     return out
   }
   return v

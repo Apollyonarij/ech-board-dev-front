@@ -2,8 +2,8 @@ import { createContext, useContext, type Accessor, type JSX } from 'solid-js'
 import { useMod } from './mod'
 import { useModals } from './modals'
 import { useStore } from './store'
-import { roleForThreadAction, canBan, canBanAny, type BanScope } from '../core/intent/capabilities'
-import type { RoleKind, RoleOption } from '../core/intent/roles'
+import { roleForThreadAction, canBan, canBanAny, type BanScope, type ThreadAction } from '../core/intent/capabilities'
+import { withThreadRoles, type RoleKind, type RoleOption } from '../core/intent/roles'
 import type { EntityNs } from '../core/intent/upgrade'
 import type { BoardObject, PostObject, PostPartInput, ThreadObject } from '../core/bcs/types'
 import { fromHex } from '../core/intent/crypto'
@@ -30,12 +30,12 @@ export interface EntityActions {
   runBanMedia: (post: PostObject, threadUid: string, hashes: Uint8Array[]) => void
   runUnbanMedia: (post: PostObject, threadUid: string, hashes: Uint8Array[]) => void
   roleKinds: Accessor<RoleKind[]>
-  canThreadClose: Accessor<boolean>
-  canThreadOpen: Accessor<boolean>
-  canThreadDelete: Accessor<boolean>
-  canThreadRestore: Accessor<boolean>
-  canThreadEditTopic: Accessor<boolean>
-  canThreadPin: Accessor<boolean>
+  canThreadClose: (threadUid: string) => boolean
+  canThreadOpen: (threadUid: string) => boolean
+  canThreadDelete: (threadUid: string) => boolean
+  canThreadRestore: (threadUid: string) => boolean
+  canThreadEditTopic: (threadUid: string) => boolean
+  canThreadPin: (threadUid: string) => boolean
   isThreadPinned: (threadUid: string) => boolean
   toggleThreadPin: (threadUid: string) => void
   threadTopic: (threadUid: string) => string
@@ -43,7 +43,7 @@ export interface EntityActions {
   selectedPosts: (uids: Set<string>) => PostObject[]
   deletedCount: (uids: Set<string>) => number
   openThreadTopic: (threadUid: string) => void
-  openThreadModerators: () => void
+  openThreadModerators: (threadUid: string) => void
   openBoardModerators: () => void
   openForumModerators: () => void
   openBoardSettings: () => void
@@ -63,7 +63,8 @@ export function EntityActionsProvider(props: { roles: RoleOption[]; children: JS
   const store = useStore()
   const mod = useMod()
   const modals = useModals()
-  const has = (action: Parameters<typeof roleForThreadAction>[0]) => () => !!roleForThreadAction(action, props.roles)
+  const threadRoles = (threadUid: string) => withThreadRoles(props.roles, store.rolesForThread(threadUid))
+  const canThread = (action: ThreadAction) => (threadUid: string) => !!roleForThreadAction(action, threadRoles(threadUid))
   const value: EntityActions = {
     runThreadAction: (action, threadUid) => mod.runThreadAction(action, threadUid),
     runThreadCloseDelete: (threadUid) => mod.runThreadCloseDelete(threadUid),
@@ -78,12 +79,12 @@ export function EntityActionsProvider(props: { roles: RoleOption[]; children: JS
     runBanMedia: (post, threadUid, hashes) => mod.runPostBanMedia(post, threadUid, hashes),
     runUnbanMedia: (post, threadUid, hashes) => mod.runPostUnbanMedia(post, threadUid, hashes),
     roleKinds: () => props.roles.map((role) => role.kind),
-    canThreadClose: has('close'),
-    canThreadOpen: has('open'),
-    canThreadDelete: has('delete'),
-    canThreadRestore: has('restore'),
-    canThreadEditTopic: has('edit_topic'),
-    canThreadPin: has('pin'),
+    canThreadClose: canThread('close'),
+    canThreadOpen: canThread('open'),
+    canThreadDelete: canThread('delete'),
+    canThreadRestore: canThread('restore'),
+    canThreadEditTopic: canThread('edit_topic'),
+    canThreadPin: (threadUid) => !!roleForThreadAction('pin', threadRoles(threadUid)),
     isThreadPinned: (threadUid) => store.pinnedUids().includes(threadUid),
     toggleThreadPin: (threadUid) => {
       const current = store.pinnedUids()
@@ -109,7 +110,7 @@ export function EntityActionsProvider(props: { roles: RoleOption[]; children: JS
       return count
     },
     openThreadTopic: (threadUid) => modals.openThreadTopic(threadUid),
-    openThreadModerators: () => modals.openThreadModerators(),
+    openThreadModerators: (threadUid) => modals.openThreadModerators(threadUid),
     openBoardModerators: () => modals.openBoardModerators(),
     openForumModerators: () => modals.openForumModerators(),
     openBoardSettings: () => modals.openBoardSettings(),
