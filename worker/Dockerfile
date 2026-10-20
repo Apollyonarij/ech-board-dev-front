@@ -18,7 +18,7 @@ RUN cargo build --release --target ${RUST_TARGET} --manifest-path worker/Cargo.t
 
 FROM ${SUI_TOOLS_IMAGE}
 ARG RUST_TARGET
-RUN apt-get update && apt-get install -y --no-install-recommends git ca-certificates && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y --no-install-recommends --no-upgrade git ca-certificates && rm -rf /var/lib/apt/lists/*
 COPY --from=build /src/target/${RUST_TARGET}/release/ech-board-worker /usr/local/bin/ech-board-worker
 USER 65532:65532
 ENTRYPOINT ["/usr/local/bin/ech-board-worker"]
