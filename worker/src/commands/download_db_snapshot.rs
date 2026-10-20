@@ -35,34 +35,36 @@ pub(crate) async fn run(_ctx: &crate::Ctx, config_path: &Path) -> anyhow::Result
     let db_path = PathBuf::from(&config.db_path).join("live");
     std::fs::create_dir_all(&db_path)?;
 
-    let resp = s3
+    let mut pages = s3
         .list_objects_v2()
         .bucket(&config.s3.bucket)
         .prefix(&epoch_prefix)
-        .send()
-        .await?;
+        .into_paginator()
+        .send();
 
-    for object in resp.contents() {
-        let key = object.key().unwrap_or_default();
-        let relative = key.strip_prefix(&epoch_prefix).unwrap_or(key);
-        if relative.is_empty() {
-            continue;
+    while let Some(page) = pages.next().await {
+        for object in page?.contents() {
+            let key = object.key().unwrap_or_default();
+            let relative = key.strip_prefix(&epoch_prefix).unwrap_or(key);
+            if relative.is_empty() {
+                continue;
+            }
+            let dest = db_path.join(relative);
+            if let Some(parent) = dest.parent() {
+                std::fs::create_dir_all(parent)?;
+            }
+            let bytes = s3
+                .get_object()
+                .bucket(&config.s3.bucket)
+                .key(key)
+                .send()
+                .await?
+                .body
+                .collect()
+                .await?
+                .into_bytes();
+            std::fs::write(&dest, bytes)?;
         }
-        let dest = db_path.join(relative);
-        if let Some(parent) = dest.parent() {
-            std::fs::create_dir_all(parent)?;
-        }
-        let bytes = s3
-            .get_object()
-            .bucket(&config.s3.bucket)
-            .key(key)
-            .send()
-            .await?
-            .body
-            .collect()
-            .await?
-            .into_bytes();
-        std::fs::write(&dest, bytes)?;
     }
 
     tracing::info!(epoch, db_path = %config.db_path, "db snapshot downloaded");
