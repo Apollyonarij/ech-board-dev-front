@@ -1,75 +1,118 @@
 import { For, Show } from 'solid-js'
 import { cva } from 'class-variance-authority'
 import { useI18n } from '../../i18n'
-import { Field } from '../Field'
-import { BbToolbar } from './BbToolbar'
+import { IconButton } from '../IconButton'
+import { FlagIcon } from '../../icons/FlagIcon'
+import { ScanQrCodeIcon } from '../../icons/ScanQrCodeIcon'
+import { BroomIcon } from '../../icons/BroomIcon'
 import type { RoleKind, RoleOption } from '../../../core/intent/roles'
 
-const optionsPanelVariants = cva('flex flex-col gap-1.5 rounded-lg bg-glass2 p-2 glass')
-const optionsRowVariants = cva('flex flex-wrap items-center gap-1.5')
-const checkRowVariants = cva('flex flex-wrap gap-4 px-0.5')
-const checkLabelVariants = cva('flex items-center gap-1.5 text-md text-secondary')
-
+/** мобилка: колонка на всю ширину; ПК: горизонтальный ряд чипов справа */
+const metaStackVariants = cva(
+  'flex w-full min-w-0 flex-col gap-1.5 max-[899px]:grid max-[899px]:grid-cols-3 max-[899px]:gap-1 min-[900px]:w-auto min-[900px]:flex-row min-[900px]:flex-wrap min-[900px]:items-center min-[900px]:justify-end',
+)
+/** select: запас справа под нативный шеврон */
+const chipSelectVariants = cva(
+  'h-9 min-w-0 w-full cursor-pointer appearance-none rounded-full border-0 bg-panel2 bg-[length:12px_12px] bg-[right_0.75rem_center] bg-no-repeat px-3 pr-8 text-left text-[15px] text-fg outline-none transition-colors hover:bg-hover max-[899px]:px-2 max-[899px]:pr-6 max-[899px]:text-[13px] min-[900px]:w-auto',
+)
+const chipNoHatVariants = cva(
+  'h-9 min-w-0 w-full cursor-pointer appearance-none rounded-full border-0 bg-panel2 bg-[length:12px_12px] bg-[right_0.75rem_center] bg-no-repeat px-3 pr-8 text-left text-[15px] text-fg outline-none transition-colors hover:bg-hover max-[899px]:px-2 max-[899px]:pr-6 max-[899px]:text-[13px] min-[900px]:w-auto',
+)
+const chipNameVariants = cva(
+  'h-9 min-w-0 w-full rounded-full border-0 bg-panel2 px-3 text-left text-[15px] text-fg outline-none transition-colors placeholder:text-secondary hover:bg-hover max-[899px]:px-2 min-[900px]:w-[8.25rem]',
+)
 export interface OptionsPanelProps {
   isEdit: boolean
-  isThread: boolean
   name: string
   onNameChange: (v: string) => void
   sendAsKind: RoleKind
   onSendAsKindChange: (k: RoleKind) => void
   roles: RoleOption[]
-  subject: string
-  onSubjectChange: (v: string) => void
+  isThread: boolean
   withFlag: boolean
-  onWithFlagChange: (v: boolean) => void
+  onWithFlagChange: (value: boolean) => void
   stripExifOn: boolean
-  onStripExifChange: (v: boolean) => void
+  onStripExifChange: (value: boolean) => void
   selfAdmin: boolean
-  onSelfAdminChange: (v: boolean) => void
-  onInsertTag: (tag: string) => void
+  onSelfAdminChange: (value: boolean) => void
 }
 
 export function OptionsPanel(props: OptionsPanelProps) {
   const { t } = useI18n()
+
   return (
-    <div class={optionsPanelVariants()}>
-      <Show when={!props.isEdit}>
-        <div class={optionsRowVariants()}>
-          <Field as="select" grow="min-w-0" value="">
+    <Show when={!props.isEdit}>
+      <div class={metaStackVariants()}>
+        <div class="flex w-full min-w-0 items-center gap-1.5 max-[899px]:contents min-[900px]:w-auto min-[900px]:flex-none">
+          <div class={`flex flex-none items-center gap-1 max-[899px]:col-span-3 ${props.isThread ? 'thread-special-actions' : ''}`}>
+            <IconButton
+              size="md"
+              title={t('postForm.withFlag')}
+              aria-label={t('postForm.withFlag')}
+              aria-pressed={props.withFlag}
+              onClick={() => props.onWithFlagChange(!props.withFlag)}
+            >
+              <FlagIcon
+                width={24}
+                height={24}
+                class={props.withFlag ? 'text-fg transition-colors' : 'text-secondary transition-colors'}
+              />
+            </IconButton>
+            <IconButton
+              size="md"
+              title={t('postForm.stripExif')}
+              aria-label={t('postForm.stripExif')}
+              aria-pressed={props.stripExifOn}
+              onClick={() => props.onStripExifChange(!props.stripExifOn)}
+            >
+              <ScanQrCodeIcon
+                width={24}
+                height={24}
+                class={props.stripExifOn ? 'text-fg transition-colors' : 'text-secondary transition-colors'}
+              />
+            </IconButton>
+            <Show when={props.isThread}>
+              <IconButton
+                size="md"
+                title={t('postForm.becomeAdmin')}
+                aria-label={t('postForm.becomeAdmin')}
+                aria-pressed={props.selfAdmin}
+                onClick={() => props.onSelfAdminChange(!props.selfAdmin)}
+              >
+                <BroomIcon
+                  width={24}
+                  height={24}
+                  class={props.selfAdmin ? 'text-fg transition-colors' : 'text-secondary transition-colors'}
+                />
+              </IconButton>
+            </Show>
+          </div>
+          <select class={chipNoHatVariants()} style={{ 'background-image': `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%238b8b8b' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E")` }} value="" aria-label={t('postForm.noHat')}>
             <option value="">{t('postForm.noHat')}</option>
-          </Field>
-          <Field as="input" grow="min-w-0" value={props.name} onInput={(e) => props.onNameChange(e.currentTarget.value)} placeholder={t('postForm.name')} />
-          <Field as="select" grow="min-w-0" value={props.sendAsKind} onInput={(e) => props.onSendAsKindChange(e.currentTarget.value as RoleKind)}>
-            <For each={props.roles}>
-              {(option) => (
-                <option value={option.kind} title={option.addressHex}>
-                  {t(option.labelKey)}
-                </option>
-              )}
-            </For>
-          </Field>
-          <Show when={props.isThread}>
-            <Field as="input" grow="basis-full" value={props.subject} onInput={(e) => props.onSubjectChange(e.currentTarget.value)} placeholder={t('postForm.subject')} />
-          </Show>
+          </select>
         </div>
-        <div class={checkRowVariants()}>
-          <label class={checkLabelVariants()}>
-            <input type="checkbox" checked={props.withFlag} onChange={(e) => props.onWithFlagChange(e.currentTarget.checked)} />
-            {t('postForm.withFlag')}
-          </label>
-          <label class={checkLabelVariants()}>
-            <input type="checkbox" checked={props.stripExifOn} onChange={(e) => props.onStripExifChange(e.currentTarget.checked)} />
-            {t('postForm.stripExif')}
-          </label>
-          <Show when={props.isThread}>
-            <label class={checkLabelVariants()}>
-              <input type="checkbox" checked={props.selfAdmin} onChange={(e) => props.onSelfAdminChange(e.currentTarget.checked)} />
-              {t('postForm.becomeAdmin')}
-            </label>
-          </Show>
-        </div>
-      </Show>
-      <BbToolbar onInsertTag={props.onInsertTag} />
-    </div>
+        <input
+          class={chipNameVariants()}
+          value={props.name}
+          onInput={(e) => props.onNameChange(e.currentTarget.value)}
+          placeholder={t('postForm.name')}
+        />
+        <select
+          class={chipSelectVariants()}
+          style={{ 'background-image': `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%238b8b8b' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E")` }}
+          value={props.sendAsKind}
+          onInput={(e) => props.onSendAsKindChange(e.currentTarget.value as RoleKind)}
+          aria-label={t('postForm.name')}
+        >
+          <For each={props.roles}>
+            {(option) => (
+              <option value={option.kind} title={option.addressHex}>
+                {t(option.labelKey)}
+              </option>
+            )}
+          </For>
+        </select>
+      </div>
+    </Show>
   )
 }
