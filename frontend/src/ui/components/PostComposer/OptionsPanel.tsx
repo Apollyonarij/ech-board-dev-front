@@ -3,14 +3,12 @@ import { cva } from 'class-variance-authority'
 import { useI18n } from '../../i18n'
 import type { RoleKind, RoleOption } from '../../../core/intent/roles'
 
-/** мобилка: колонка на всю ширину; ПК: горизонтальный ряд чипов справа */
 const metaStackVariants = cva(
   'grid w-full min-w-0 grid-cols-[auto_minmax(3rem,1fr)_auto] items-center gap-2 min-[900px]:flex min-[900px]:w-auto min-[900px]:flex-row min-[900px]:flex-wrap min-[900px]:justify-end',
 )
 const chipVariants = cva(
   'h-9 min-w-0 cursor-pointer rounded-full border-0 bg-panel2 px-3 text-left text-[15px] text-fg outline-none transition-colors placeholder:text-secondary hover:bg-hover max-[899px]:w-full min-[900px]:w-auto',
 )
-/** select: запас справа под нативный шеврон */
 const chipSelectVariants = cva(
   'h-9 min-w-0 max-w-full cursor-pointer appearance-none rounded-full border-0 bg-panel2 bg-[length:12px_12px] bg-[right_0.5rem_center] bg-no-repeat px-2 pr-6 text-left text-[15px] text-fg outline-none transition-colors hover:bg-hover min-[900px]:px-3 min-[900px]:pr-8',
 )

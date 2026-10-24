@@ -6,9 +6,7 @@ export interface TrackedThread {
   slug: string
   number: number
   title: string
-  /** известное количество постов в треде */
   count: number
-  /** количество постов, прочитанное при последнем посещении */
   seen: number
   addedAt: number
 }
@@ -46,7 +44,6 @@ export function trackedThreads(): Accessor<TrackedThread[]> {
   }
 }
 
-/** Тред попадает в отслеживаемые, когда в нём написали пост. */
 export function trackThread(thread: {
   uid: string
   forumId: string
@@ -80,7 +77,6 @@ export function clearTracked(): void {
   persist()
 }
 
-/** Запоминаем прочитанное количество постов при посещении треда. */
 export function markThreadSeen(uid: string, count: number): void {
   const item = store.find((entry) => entry.uid === uid)
   if (!item || (item.seen === count && item.count === count)) return
@@ -89,7 +85,6 @@ export function markThreadSeen(uid: string, count: number): void {
   persist()
 }
 
-/** Обновляем известные данные отслеживаемых тредов из загруженного состояния. */
 export function syncTracked(entries: { uid: string; title: string; count: number }[]): void {
   let changed = false
   for (const entry of entries) {

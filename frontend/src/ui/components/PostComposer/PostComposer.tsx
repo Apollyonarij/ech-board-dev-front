@@ -45,9 +45,7 @@ const toolVariants = cva('grid size-11 flex-none place-items-center rounded-full
 const sendVariants = cva(
   'ml-1.5 grid size-11 flex-none place-items-center rounded-full bg-accent text-[#0b1626] transition-colors hover:brightness-110 disabled:bg-chip disabled:text-secondary',
 )
-/** превью файлов над боксом, не раздувает высоту композитора */
 const filesOverlayVariants = cva('pointer-events-auto absolute bottom-full left-0 right-0 mb-1.5 flex justify-start px-0.5')
-/** плавное раскрытие блока опций */
 const optionsWrapVariants = cva(
   'grid transition-[grid-template-rows,opacity] duration-200 ease-out',
   {
@@ -431,7 +429,6 @@ export function PostComposer(props: { mode?: 'reply' | 'thread'; slug?: string; 
       }}
     >
       <div class="relative w-full">
-        {/* Превью вне overflow:hidden бокса, иначе медиа не видно */}
         <Show when={files().length > 0}>
           <div class={filesOverlayVariants()}>
             <FilePreview files={files()} previewUrls={previewUrls()} onRemove={removeFile} />
@@ -461,7 +458,6 @@ export function PostComposer(props: { mode?: 'reply' | 'thread'; slug?: string; 
           }}
         />
 
-        {/* Опции — анимируются, строка ввода всегда одна и та же (без прыжка при фокусе) */}
         <div class={optionsWrapVariants({ open: optionsOpen() || isEdit() })}>
           <div class={optionsInnerVariants()}>
             <div class={optionsStackVariants()}>
@@ -474,7 +470,6 @@ export function PostComposer(props: { mode?: 'reply' | 'thread'; slug?: string; 
                 />
               </Show>
 
-              {/* ПК: теги слева + meta справа; мобилка: meta сверху, теги снизу */}
               <div class="flex w-full min-w-0 flex-col gap-1.5 min-[900px]:flex-row min-[900px]:items-center min-[900px]:gap-2">
                 <Show when={isEdit()}>
                   <IconButton size="md" class={toolVariants()} title={t('mod.cancel')} onClick={() => props.onEditDone?.()}>

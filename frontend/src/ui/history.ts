@@ -42,7 +42,6 @@ export function historyEntries(): Accessor<HistoryEntry[]> {
   }
 }
 
-/** Вызывается при каждом заходе на страницу треда. */
 export function pushHistory(entry: Omit<HistoryEntry, 'at'>): void {
   const at = Date.now()
   const rest = store.filter((item) => item.uid !== entry.uid)

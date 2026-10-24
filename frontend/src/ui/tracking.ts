@@ -9,10 +9,6 @@ export interface ThreadContext {
   number: number
 }
 
-/**
- * Тред попадает в «Отслеживаемое», когда пользователь написал в него пост
- * (включая создание треда). Ищем наши посты среди загруженных записей.
- */
 export function trackAuthoredThreads(store: ForumStore, ctx: ThreadContext): void {
   const threadUid = store.threadUid()
   if (threadUid) {
@@ -43,7 +39,6 @@ export function trackAuthoredThreads(store: ForumStore, ctx: ThreadContext): voi
   }
 }
 
-/** Подтягиваем счётчики и заголовки отслеживаемых/посещённых тредов из ленты доски. */
 export function syncThreadLists(store: ForumStore): void {
   const rows = store.rowsOf(true)
   if (rows.length === 0) return
@@ -55,7 +50,6 @@ export function syncThreadLists(store: ForumStore): void {
   }
 }
 
-/** Запись визита на страницу треда + отметка прочитанного. */
 export function recordThreadVisit(store: ForumStore, ctx: ThreadContext): void {
   const uid = store.threadUid()
   if (!uid) return

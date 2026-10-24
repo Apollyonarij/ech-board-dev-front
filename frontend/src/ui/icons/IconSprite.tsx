@@ -4,7 +4,6 @@ export function IconSprite() {
   return (
     <svg xmlns={NS} width="0" height="0" style={{ position: 'absolute' }} aria-hidden="true">
       <defs>
-        {/* BBCode toolbar icons: these symbols were referenced by components but missing from the sprite. */}
         <g id="icon-bold"><path d="M6 4h7a4 4 0 0 1 0 8H6z"/><path d="M6 12h8a4 4 0 0 1 0 8H6z"/></g>
         <g id="icon-italic"><path d="M19 4h-9"/><path d="M14 20H5"/><path d="M15 4 9 20"/></g>
         <g id="icon-strikethrough"><path d="M16 4H9a3 3 0 0 0-2.83 4"/><path d="M14 12a4 4 0 0 1 0 8H6"/><line x1="4" x2="20" y1="12" y2="12"/></g>
