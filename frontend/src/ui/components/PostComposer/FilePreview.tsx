@@ -6,9 +6,9 @@ import { IconButton } from '../IconButton'
 
 const filesRowVariants = cva('flex flex-wrap items-end gap-2')
 const fileItemVariants = cva('relative rounded-md bg-panel2 p-1')
-const fileMediaVariants = cva('block size-14 rounded-sm object-cover')
-const fileAudioVariants = cva('flex size-14 items-center justify-center rounded-sm bg-shade text-fg')
-const filePdfVariants = cva('flex size-14 items-center justify-center rounded-sm bg-shade text-xs font-bold tracking-wider text-fg')
+const fileMediaVariants = cva('block size-18 rounded-sm object-cover')
+const fileAudioVariants = cva('flex size-18 items-center justify-center rounded-sm bg-shade text-fg')
+const filePdfVariants = cva('flex size-18 items-center justify-center rounded-sm bg-shade text-xs font-bold tracking-wider text-fg')
 const fileMetaVariants = cva('mt-0.5 flex items-center justify-between px-0.5 text-sm text-secondary')
 const fileRemoveVariants = cva('p-0 leading-none hover:bg-hover')
 
