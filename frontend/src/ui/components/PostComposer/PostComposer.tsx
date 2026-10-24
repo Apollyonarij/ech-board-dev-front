@@ -95,18 +95,14 @@ export function PostComposer(props: { mode?: 'reply' | 'thread'; slug?: string; 
   const [stripExifOn, setStripExifOn] = createSignal(draft.stripExifOn)
   const [selfAdmin, setSelfAdmin] = createSignal(draft.selfAdmin)
   const [dragOver, setDragOver] = createSignal(false)
-  // optionsOpen — меню опций только по клику на ^
   const [optionsOpen, setOptionsOpen] = createSignal(false)
 
-  // мобилка: класс composer-open управляет видимостью композитора и data-tabs
   createEffect(() => {
-    // reply (тред) — всегда виден; thread (доска) — только после карандаша в data-tabs
     const open = mobileComposerOpen() || isEdit() || mode() === 'reply'
     document.documentElement.classList.toggle('composer-open', open)
     onCleanup(() => document.documentElement.classList.remove('composer-open'))
   })
 
-  // клик вне композитора на мобилке — закрыть
   createEffect(() => {
     if (!mobileComposerOpen() && !isEdit()) return
     const onPointer = (e: PointerEvent) => {
@@ -240,7 +236,7 @@ export function PostComposer(props: { mode?: 'reply' | 'thread'; slug?: string; 
     }
     if (el.selectionEnd === el.value.length) el.scrollTop = el.scrollHeight
   }
-  const BASE_H = 44 // высота строки совпадает с нижним краем кнопок
+  const BASE_H = 44
   const syncHeight = () => {
     const value = text()
     const el = textarea
@@ -345,7 +341,6 @@ export function PostComposer(props: { mode?: 'reply' | 'thread'; slug?: string; 
       { text: text(), name: name(), withFlag: withFlag(), files: files(), stripExif: stripExifOn(), selfAdmin: false },
     )
     if (!res) return
-    // В «Отслеживаемое» только после явной отправки сообщения из композитора.
     if (props.slug && props.threadNum) {
       trackThread({
         uid: threadUid,
@@ -374,7 +369,6 @@ export function PostComposer(props: { mode?: 'reply' | 'thread'; slug?: string; 
       subject(),
     )
     if (!res) return
-    // Новый тред попадёт в отслеживаемые, когда появятся наши посты в ленте.
     trackAuthoredThreads(store, { forumId: info.forumId, slug, number: 0 })
     setText('')
     setSubject('')

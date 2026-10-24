@@ -190,8 +190,6 @@ function ThreadBody(props: {
     if (!composer || !threadList) return
     let height = composer.getBoundingClientRect().height
     const syncComposerSpace = (composerHeight: number) => {
-      // The composer is fixed to the viewport, so reserve its full height plus a small gap
-      // inside the scrollable post list. This keeps the last post reachable and visible.
       const padding = `${Math.ceil(composerHeight + 16)}px`
       if (threadList.style.paddingBottom !== padding) threadList.style.paddingBottom = padding
     }

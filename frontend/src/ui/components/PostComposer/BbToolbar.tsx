@@ -16,12 +16,9 @@ import { FoldIcon } from '../../icons/FoldIcon'
 import { SecretIcon } from '../../icons/SecretIcon'
 
 const rowVariants = cva(
-  // Flex-wrap keeps tag buttons compact on phones instead of spreading them
-  // across four full-width grid columns. Desktop spacing remains unchanged.
   'flex w-full flex-wrap items-center gap-1.5 min-[900px]:w-auto min-[900px]:gap-2.5',
 )
 const ICONS: Record<string, () => JSX.Element> = {
-  // Icons share a 24×24 viewBox; the glyph paths follow the attached SVG reference.
   b: () => <BoldIcon width={24} height={24} />,
   i: () => <ItalicIcon width={24} height={24} />,
   u: () => <UnderlineIcon width={24} height={24} />,
