@@ -44,10 +44,6 @@ interface BbTag {
   titleKey: MessageKey
 }
 
-interface BbToolbarProps {
-  onInsertTag: (tag: string) => void
-}
-
 const BB_TAGS: BbTag[] = [
   { tag: 'b', titleKey: 'postForm.bold' },
   { tag: 'i', titleKey: 'postForm.italic' },
@@ -63,7 +59,7 @@ const BB_TAGS: BbTag[] = [
   { tag: 'secret', titleKey: 'postForm.secret' },
 ]
 
-export function BbToolbar(props: BbToolbarProps) {
+export function BbToolbar(props: { onInsertTag: (tag: string) => void }) {
   const { t } = useI18n()
   return (
     <div class={rowVariants()}>

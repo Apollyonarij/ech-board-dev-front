@@ -27,7 +27,7 @@ export const ru = {
   'postForm.maxMediaReached': 'Достигнут лимит вложений ({n}). Файл не добавлен.',
   'postForm.maxMediaPartial': 'Лимит вложений — {n}. Добавлено: {added}, пропущено: {skipped}.',
   'postForm.withFlag': 'С флажком',
-  'postForm.stripExif': 'Удалить EXIF (только картинки)',
+  'postForm.stripExif': 'Удалить EXIF (картинки)',
   'postForm.becomeAdmin': 'Стать админом треда',
   'post.secret': 'приватный текст',
   'post.secretDecryptFailed': 'Не удалось расшифровать',

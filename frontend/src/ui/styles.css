@@ -329,19 +329,6 @@ main.ml-nav-collapsed .composer-fixed {
 }
 
 @media (max-width: 899px) {
-  /* В композиторе треда специальные кнопки располагаются слева от поля «Тема». */
-  .thread-special-actions {
-    position: absolute;
-    top: 0;
-    left: 0;
-    z-index: 1;
-  }
-
-  .thread-subject-input {
-    width: calc(100% - 122px);
-    margin-left: 122px;
-  }
-
   .composer-fixed,
   main.ml-nav-collapsed .composer-fixed {
     left: 0;

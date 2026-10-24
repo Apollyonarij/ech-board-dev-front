@@ -22,7 +22,7 @@ const iconButtonVariants = cva(
         glass: 'bg-glass2 glass',
       },
       active: {
-        true: 'bg-[#111827] text-accent',
+        true: 'text-accent',
       },
     },
     defaultVariants: { shape: 'circle' },

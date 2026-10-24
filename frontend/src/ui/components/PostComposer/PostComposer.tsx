@@ -60,7 +60,7 @@ const optionsWrapVariants = cva(
   },
 )
 const optionsInnerVariants = cva('min-h-0 overflow-hidden')
-const optionsStackVariants = cva('relative flex flex-col gap-1.5 pb-0.5')
+const optionsStackVariants = cva('flex flex-col gap-1.5 pb-0.5')
 
 function isAllowedMedia(type: string): boolean {
   return (
@@ -473,7 +473,7 @@ export function PostComposer(props: { mode?: 'reply' | 'thread'; slug?: string; 
             <div class={optionsStackVariants()}>
               <Show when={isThread() && !isEdit()}>
                 <input
-                  class="thread-subject-input h-9 w-full min-w-0 rounded-full border-0 bg-panel2 px-3 text-left text-[15px] text-fg outline-none placeholder:text-secondary"
+                  class="h-9 w-full min-w-0 rounded-full border-0 bg-panel2 px-3 text-left text-[15px] text-fg outline-none placeholder:text-secondary"
                   value={subject()}
                   onInput={(e) => setSubject(e.currentTarget.value)}
                   placeholder={t('postForm.subject')}
@@ -493,24 +493,47 @@ export function PostComposer(props: { mode?: 'reply' | 'thread'; slug?: string; 
                 <Show when={!isEdit()}>
                   <div class="order-1 w-full min-[900px]:order-2 min-[900px]:w-auto min-[900px]:flex-none">
                     <OptionsPanel
+                      variant="meta"
                       isEdit={false}
+                      isThread={isThread()}
                       name={name()}
                       onNameChange={setName}
                       sendAsKind={sendAsKind()}
                       onSendAsKindChange={setSendAsKind}
                       roles={visibleRoles()}
-                      isThread={isThread()}
+                      selfAdmin={selfAdmin()}
+                      onSelfAdminChange={setSelfAdmin}
+                      subject={subject()}
+                      onSubjectChange={setSubject}
                       withFlag={withFlag()}
                       onWithFlagChange={setWithFlag}
                       stripExifOn={stripExifOn()}
                       onStripExifChange={setStripExifOn}
-                      selfAdmin={selfAdmin()}
-                      onSelfAdminChange={setSelfAdmin}
                     />
                   </div>
                 </Show>
               </div>
 
+              <Show when={!isEdit()}>
+                <OptionsPanel
+                  variant="checks"
+                  isEdit={false}
+                  isThread={isThread()}
+                  name={name()}
+                  onNameChange={setName}
+                  sendAsKind={sendAsKind()}
+                  onSendAsKindChange={setSendAsKind}
+                  roles={visibleRoles()}
+                  selfAdmin={selfAdmin()}
+                  onSelfAdminChange={setSelfAdmin}
+                  subject={subject()}
+                  onSubjectChange={setSubject}
+                  withFlag={withFlag()}
+                  onWithFlagChange={setWithFlag}
+                  stripExifOn={stripExifOn()}
+                  onStripExifChange={setStripExifOn}
+                />
+              </Show>
             </div>
           </div>
         </div>
