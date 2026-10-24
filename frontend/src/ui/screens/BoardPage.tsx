@@ -13,7 +13,6 @@ import { canBanByUid, canBoardSettings } from '../../core/intent/capabilities'
 import { useNav } from '../nav'
 import { PostComposer } from '../components/PostComposer/PostComposer'
 import { openMobileComposer } from '../composerVisibility'
-import { syncThreadLists } from '../tracking'
 
 const pageVariants = cva('flex min-h-screen min-w-0 flex-col')
 const screenVariants = cva('flex min-h-dvh flex-col')
@@ -33,10 +32,6 @@ export function BoardPage(props: { forumId: string; slug: string; heading: strin
   const store = useStore()
   const nav = useNav()
   let sentinel: HTMLDivElement | undefined
-  createEffect(() => {
-    rows()
-    syncThreadLists(store)
-  })
   createEffect(() => {
     const board = info()
     if (!board || board.nextCursor === null) return

@@ -18,8 +18,6 @@ import { getForumInfo } from '../../../core/api/cache'
 import { IconButton } from '../IconButton'
 import { useComposerBridge } from '../../composerBridge'
 import { getComposerDraft, saveComposerDraft } from '../../composerDraft'
-import { trackAuthoredThreads } from '../../tracking'
-import { trackThread } from '../../tracked'
 import { reportError } from '../../errors'
 import { useRecordSource, useStore } from '../../store'
 import { OptionsPanel } from './OptionsPanel'
@@ -339,16 +337,6 @@ export function PostComposer(props: { mode?: 'reply' | 'thread'; slug?: string; 
       { text: text(), name: name(), withFlag: withFlag(), files: files(), stripExif: stripExifOn(), selfAdmin: false },
     )
     if (!res) return
-    if (props.slug && props.threadNum) {
-      trackThread({
-        uid: threadUid,
-        forumId: info.forumId,
-        slug: props.slug,
-        number: props.threadNum,
-        title: store.threadTitle(),
-        count: store.postsOf(true).length + 1,
-      })
-    }
     setText('')
     setName('')
     setFiles([])
@@ -367,7 +355,6 @@ export function PostComposer(props: { mode?: 'reply' | 'thread'; slug?: string; 
       subject(),
     )
     if (!res) return
-    trackAuthoredThreads(store, { forumId: info.forumId, slug, number: 0 })
     setText('')
     setSubject('')
     setName('')
