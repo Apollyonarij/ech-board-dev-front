@@ -20,7 +20,6 @@ export const ru = {
   'postForm.newThread': 'Новый тред',
   'postForm.expand': 'Развернуть композитор',
   'postForm.collapse': 'Свернуть композитор',
-  'postForm.commentOp': 'Текст ОП-поста...',
   'postForm.addFile': 'Добавить файл/ctrl-v',
   'postForm.dropHere': 'Отпустите, чтобы добавить файл',
   'postForm.options': 'Опции',

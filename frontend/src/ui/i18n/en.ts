@@ -22,7 +22,6 @@ export const en: Dict = {
   'postForm.newThread': 'New thread',
   'postForm.expand': 'Expand composer',
   'postForm.collapse': 'Collapse composer',
-  'postForm.commentOp': 'OP post text...',
   'postForm.addFile': 'Add file/ctrl-v',
   'postForm.dropHere': 'Drop to add file',
   'postForm.options': 'Options',
