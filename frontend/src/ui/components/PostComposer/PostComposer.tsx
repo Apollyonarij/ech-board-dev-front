@@ -23,19 +23,20 @@ import { useRecordSource, useStore } from '../../store'
 import { OptionsPanel } from './OptionsPanel'
 import { BbToolbar } from './BbToolbar'
 import { FilePreview } from './FilePreview'
+import { createOptionsReveal } from './useOptionsReveal'
 import { closeMobileComposer, mobileComposerOpen, openMobileComposer } from '../../composerVisibility'
 
 const spinnerVariants = cva('size-4 animate-spin rounded-full border-2 border-track border-t-fg')
 const composerRootVariants = cva('composer-fixed layout-anim')
 const boxVariants = cva(
-  'relative flex flex-col gap-1.5 overflow-hidden rounded-[1rem] border border-separator bg-panel1 px-2.5 py-2 shadow-[0_0.5rem_1.5rem_var(--color-bg)]',
+  'relative flex flex-col gap-1.5 rounded-[var(--radius-composer)] bg-panel1 p-2 glass',
 )
 const dropOverlayVariants = cva(
   'pointer-events-none absolute inset-0 z-10 flex items-center justify-center rounded-lg border-2 border-dashed border-accent bg-bg text-accent uppercase [letter-spacing:0.03em]',
 )
 const actionRowVariants = cva('flex items-end gap-2.5')
 const textareaVariants = cva(
-  'box-border min-h-[44px] max-h-composer w-full min-w-0 flex-1 resize-none overflow-y-hidden bg-transparent pt-[10px] pb-0 text-left text-[15px] font-normal leading-6 text-fg outline-none transition-[height] duration-150 ease-out',
+  'box-border min-h-[44px] max-h-composer w-full min-w-0 flex-1 resize-none overflow-y-hidden bg-transparent pt-[10px] pb-0 text-left text-[15px] font-normal leading-6 text-fg outline-none',
 )
 const mirrorVariants = cva('box-border min-h-[44px] max-h-composer resize-none overflow-hidden pt-[10px] pb-0 text-[15px] font-normal leading-6')
 const hiddenInputVariants = cva('hidden')
@@ -43,20 +44,17 @@ const toolVariants = cva('grid size-11 flex-none place-items-center rounded-full
 const sendVariants = cva(
   'ml-1.5 grid size-11 flex-none place-items-center rounded-full bg-accent text-[#0b1626] transition-colors hover:brightness-110 disabled:bg-chip disabled:text-secondary',
 )
-const filesOverlayVariants = cva('pointer-events-auto absolute bottom-full left-0 right-0 mb-1.5 flex justify-start px-0.5')
-const optionsWrapVariants = cva(
-  'grid transition-[grid-template-rows,opacity] duration-200 ease-out',
-  {
-    variants: {
-      open: {
-        true: 'grid-rows-[1fr] opacity-100',
-        false: 'grid-rows-[0fr] opacity-0 pointer-events-none',
-      },
+const filesOverlayVariants = cva('mb-1.5 flex justify-start px-0.5')
+const optionsWrapVariants = cva('min-w-0', {
+  variants: {
+    open: {
+      true: 'block',
+      false: 'hidden',
     },
   },
-)
-const optionsInnerVariants = cva('min-h-0 overflow-hidden')
-const optionsStackVariants = cva('flex flex-col gap-1.5 pb-0.5')
+})
+const optionsInnerVariants = cva('min-w-0')
+const optionsStackVariants = cva('flex flex-col gap-1.5 pb-0.5 pt-2')
 
 function isAllowedMedia(type: string): boolean {
   return (
@@ -92,6 +90,7 @@ export function PostComposer(props: { mode?: 'reply' | 'thread'; slug?: string; 
   const [selfAdmin, setSelfAdmin] = createSignal(draft.selfAdmin)
   const [dragOver, setDragOver] = createSignal(false)
   const [optionsOpen, setOptionsOpen] = createSignal(false)
+  const reveal = createOptionsReveal(() => optionsOpen() || isEdit())
 
   createEffect(() => {
     const open = mobileComposerOpen() || isEdit() || mode() === 'reply'
@@ -232,7 +231,7 @@ export function PostComposer(props: { mode?: 'reply' | 'thread'; slug?: string; 
     }
     if (el.selectionEnd === el.value.length) el.scrollTop = el.scrollHeight
   }
-  const BASE_H = 44
+  const BASE_H = 44 
   const syncHeight = () => {
     const value = text()
     const el = textarea
@@ -416,13 +415,15 @@ export function PostComposer(props: { mode?: 'reply' | 'thread'; slug?: string; 
       }}
     >
       <div class="relative w-full">
-        <Show when={files().length > 0}>
-          <div class={filesOverlayVariants()}>
-            <FilePreview files={files()} previewUrls={previewUrls()} onRemove={removeFile} />
-          </div>
-        </Show>
-      <div class={boxVariants()} style={{ position: 'relative' }}>
-        {props.nav}
+        <div ref={reveal.setAbove} class="absolute inset-x-0 bottom-full">
+          {props.nav}
+          <Show when={files().length > 0}>
+            <div class={filesOverlayVariants()}>
+              <FilePreview files={files()} previewUrls={previewUrls()} onRemove={removeFile} />
+            </div>
+          </Show>
+        </div>
+      <div ref={reveal.setBox} class={boxVariants()} style={{ position: 'relative' }}>
         <div class="pointer-events-none invisible absolute left-0 top-0 h-0 w-0 overflow-hidden">
           <textarea ref={mirror} class={mirrorVariants()} rows={1} tabIndex={-1} aria-hidden="true" />
         </div>
@@ -445,7 +446,7 @@ export function PostComposer(props: { mode?: 'reply' | 'thread'; slug?: string; 
           }}
         />
 
-        <div class={optionsWrapVariants({ open: optionsOpen() || isEdit() })}>
+        <div ref={reveal.setOptions} class={optionsWrapVariants({ open: reveal.shown() })}>
           <div class={optionsInnerVariants()}>
             <div class={optionsStackVariants()}>
               <Show when={isThread() && !isEdit()}>

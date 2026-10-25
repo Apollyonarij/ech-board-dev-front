@@ -1,4 +1,4 @@
-import { For } from 'solid-js'
+import { For, Show } from 'solid-js'
 import { cva } from 'class-variance-authority'
 import { useI18n, type Lang } from '../i18n'
 import { haptic } from '../haptic'
@@ -20,8 +20,14 @@ export function AppearanceView() {
     setHideThreadsCompletely,
     expandFolds,
     setExpandFolds,
+    hideReactions,
+    setHideReactions,
     appearance,
     setAppearance,
+    uiStyle,
+    setUiStyle,
+    cornerRadius,
+    setCornerRadius,
   } = useI18n()
   const themes = () => [
     { id: 'default_dark', label: t('settings.themeDefaultDark') },
@@ -77,12 +83,53 @@ export function AppearanceView() {
           <input type="checkbox" class={toggleVariants()} checked={expandFolds()} readOnly />
         </span>
       </label>
+      <label class={settingRowVariants()}>
+        <span>{t('settings.hideReactions')}</span>
+        <span
+          ref={(el) => haptic(el)}
+          role="checkbox"
+          aria-checked={hideReactions()}
+          class={toggleWrapVariants()}
+          onClick={(e) => {
+            e.preventDefault()
+            setHideReactions(!hideReactions())
+          }}
+        >
+          <input type="checkbox" class={toggleVariants()} checked={hideReactions()} readOnly />
+        </span>
+      </label>
       <div class={settingRowVariants()}>
         <span>{t('settings.theme')}</span>
         <Field as="select" bordered select value={appearance()} onInput={(e) => setAppearance(e.currentTarget.value)}>
           <For each={themes()}>{(theme) => <option value={theme.id}>{theme.label}</option>}</For>
         </Field>
       </div>
+      <div class={settingRowVariants()}>
+        <span>{t('settings.style')}</span>
+        <Field as="select" bordered select value={uiStyle()} onInput={(e) => setUiStyle(e.currentTarget.value as 'modern' | 'potato')}>
+          <option value="modern">Modern</option>
+          <option value="potato" disabled>
+            Potato
+          </option>
+        </Field>
+      </div>
+      <Show when={uiStyle() === 'modern'}>
+        <div class={settingRowVariants()}>
+          <span>{t('settings.radius')} {cornerRadius()}%</span>
+          <Field
+            as="input"
+            type="range"
+            min="0"
+            max="100"
+            step="10"
+            value={cornerRadius()}
+            title={`${cornerRadius()}%`}
+            aria-label={t('settings.radius')}
+            class="corner-radius-slider w-36 flex-none"
+            onInput={(e) => setCornerRadius(Number(e.currentTarget.value))}
+          />
+        </div>
+      </Show>
       <div class={settingRowVariants()}>
         <span>{t('settings.language')}</span>
         <Field as="select" bordered select value={lang()} onInput={(e) => setLang(e.currentTarget.value as Lang)}>

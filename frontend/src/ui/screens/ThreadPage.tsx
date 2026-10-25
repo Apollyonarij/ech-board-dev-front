@@ -19,7 +19,6 @@ import { canBanByUid, canPostAction } from '../../core/intent/capabilities'
 
 const pageVariants = cva('flex min-h-screen min-w-0 flex-col')
 const screenVariants = cva('flex min-h-dvh flex-col')
-const menuTriggerVariants = cva('ml-auto px-1 py-2 hover:bg-hover')
 const listVariants = cva('pl-4 pr-3.5 pb-[4.25rem]')
 const listMobileVariants = cva('pl-[calc(1rem+env(safe-area-inset-left,0px))] pr-[calc(1rem+env(safe-area-inset-right,0px))] pb-[4.25rem] pt-2.5')
 const markerVariants = cva('my-3 w-full border-t-2 border-dashed border-accent will-change-transform')
@@ -185,12 +184,14 @@ function ThreadBody(props: {
 
   createEffect(() => {
     posts()
+    const remeasure = requestAnimationFrame(measure)
+    onCleanup(() => cancelAnimationFrame(remeasure))
     const composer = document.querySelector<HTMLElement>('[data-composer]')
     const threadList = document.querySelector<HTMLElement>('[data-thread-scroll]')
     if (!composer || !threadList) return
     let height = composer.getBoundingClientRect().height
     const syncComposerSpace = (composerHeight: number) => {
-      const padding = `${Math.ceil(composerHeight + 16)}px`
+      const padding = `${Math.ceil(composerHeight + 8)}px`
       if (threadList.style.paddingBottom !== padding) threadList.style.paddingBottom = padding
     }
     syncComposerSpace(height)
@@ -218,7 +219,7 @@ function ThreadBody(props: {
         onBack={back}
         trailing={
           <Show when={page()}>
-            <ThreadSelectionMenu items={props.threadMenu()} variant="glass" class={menuTriggerVariants()} />
+            <ThreadSelectionMenu items={props.threadMenu()} size="lg" />
           </Show>
         }
         below={

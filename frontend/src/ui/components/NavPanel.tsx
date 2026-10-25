@@ -1,7 +1,8 @@
 import { createSignal, For, Show } from 'solid-js'
 import { cva } from 'class-variance-authority'
 import { useI18n } from '../i18n'
-import { boardPath, settingKeyToSlug, type SettingSlug } from '../route'
+import { boardPath, settingKeyToSlug, type ModTab, type SettingSlug } from '../route'
+import { MOD_TABS, closeModTabs, modTabsOpen, openModTabs } from '../modTabs'
 import type { Section } from '../nav'
 import { CheckIcon } from '../icons/CheckIcon'
 import { ChevronDownIcon } from '../icons/ChevronDownIcon'
@@ -11,14 +12,16 @@ import { PanelLeftCloseIcon } from '../icons/PanelLeftCloseIcon'
 import { PanelLeftOpenIcon } from '../icons/PanelLeftOpenIcon'
 import { BoardsIcon } from '../icons/BoardsIcon'
 import { SettingsIcon } from '../icons/SettingsIcon'
+import { ShieldIcon } from '../icons/ShieldIcon'
+import { ChevronLeftIcon } from '../icons/ChevronLeftIcon'
 import { Capsule } from './Capsule'
 import { IconButton } from './IconButton'
 import { settingLabel } from '../settings'
 import type { BoardInfo, ForumInfo } from '../../core/views'
 
 const navScrollVariants = cva('flex-1 min-h-0 overflow-y-auto')
-const navInnerVariants = cva('flex min-h-full flex-col pb-3')
-const navPanelHeaderVariants = cva('glass-fade sticky top-0 z-header relative flex items-center px-4 py-3 min-h-header collapsed:justify-center gap-2.5')
+const navInnerVariants = cva('flex min-h-full flex-col pb-2')
+const navPanelHeaderVariants = cva('glass-fade sticky top-0 z-header relative flex h-15 items-center px-4 py-2 collapsed:justify-center gap-2.5')
 const navPanelCollapseBtnVariants = cva('ml-auto collapsed:ml-0 hover:bg-hover')
 const navSectionVariants = cva('min-h-0', {
   variants: {
@@ -59,7 +62,7 @@ const navItemVariants = cva('grid cursor-pointer grid-cols-[44px_1fr_auto] items
 const navItemIconVariants = cva('font-bold text-accent collapsed:whitespace-nowrap')
 const navItemLabelVariants = cva('font-semibold text-fg collapsed:hidden')
 const navItemMetaVariants = cva('text-sm text-secondary collapsed:hidden')
-const globalBarCapsuleVariants = cva('sticky bottom-3 z-header mt-auto gap-2 p-2 flex items-center rounded-full glass bg-glass1', {
+const globalBarCapsuleVariants = cva('sticky bottom-2 z-header mt-auto gap-2 p-2 flex items-center rounded-full glass bg-glass1', {
   variants: {
     collapsed: {
       true: 'flex-col mx-auto w-fit',
@@ -67,7 +70,12 @@ const globalBarCapsuleVariants = cva('sticky bottom-3 z-header mt-auto gap-2 p-2
     },
   },
 })
-const spacerVariants = cva('flex-1')
+const barRowVariants = cva('fade-in flex w-full items-center justify-between', {
+  variants: {
+    collapsed: { true: 'flex-col', false: '' },
+    spread: { true: 'justify-between', false: '' },
+  },
+})
 
 export type { Section }
 
@@ -82,6 +90,8 @@ export function NavPanel(props: {
   boards: BoardInfo[]
   board: BoardInfo | null
   setting: SettingSlug | null
+  modTab: ModTab | null
+  onOpenMod: (tab: ModTab) => void
   onToggleCollapsed: () => void
   onSelectForum: (forum: ForumInfo) => void
   onSelectBoard: (board: BoardInfo) => void
@@ -224,21 +234,51 @@ export function NavPanel(props: {
           </div>
         </section>
         <div class={globalBarCapsuleVariants({ collapsed: props.collapsed })}>
-          <IconButton
-            size="xl"
-            variant={props.section === 'boards' ? 'glass' : undefined}
-            onClick={() => props.onNavigateSection('boards')}
+          <Show
+            when={modTabsOpen()}
+            fallback={
+              <div class={barRowVariants({ collapsed: props.collapsed })}>
+                <IconButton
+                  size="lg"
+                  variant={props.section === 'boards' ? 'glass' : undefined}
+                  onClick={() => props.onNavigateSection('boards')}
+                  aria-label={t('ui.boards')}
+                >
+                  <BoardsIcon width={24} height={24} />
+                </IconButton>
+                <IconButton
+                  size="lg"
+                  variant={props.section === 'settings' ? 'glass' : undefined}
+                  onClick={() => props.onNavigateSection('settings')}
+                  aria-label={t('ui.settings')}
+                >
+                  <SettingsIcon width={24} height={24} />
+                </IconButton>
+                <IconButton size="lg" onClick={openModTabs} aria-label={t('ui.moderation')} title={t('ui.moderation')}>
+                  <ShieldIcon width={24} height={24} />
+                </IconButton>
+              </div>
+            }
           >
-            <BoardsIcon width={24} height={24} />
-          </IconButton>
-          <div class={spacerVariants()} />
-          <IconButton
-            size="xl"
-            variant={props.section === 'settings' ? 'glass' : undefined}
-            onClick={() => props.onNavigateSection('settings')}
-          >
-            <SettingsIcon width={24} height={24} />
-          </IconButton>
+            <div class={barRowVariants({ collapsed: props.collapsed, spread: true })}>
+              <For each={MOD_TABS}>
+                {(item) => (
+                  <IconButton
+                    size="lg"
+                    variant={props.modTab === item.tab ? 'glass' : undefined}
+                    onClick={() => props.onOpenMod(item.tab)}
+                    aria-label={t(item.label)}
+                    title={t(item.label)}
+                  >
+                    <item.Icon width={24} height={24} />
+                  </IconButton>
+                )}
+              </For>
+              <IconButton size="lg" onClick={closeModTabs} aria-label={t('ui.back')} title={t('ui.back')}>
+                <ChevronLeftIcon width={24} height={24} />
+              </IconButton>
+            </div>
+          </Show>
         </div>
       </div>
     </div>

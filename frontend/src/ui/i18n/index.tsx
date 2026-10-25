@@ -6,6 +6,7 @@ import { setTitleTheme } from '../title'
 
 export type Lang = 'ru' | 'en'
 export type Theme = 'light' | 'dark'
+export type UiStyle = 'modern' | 'potato'
 
 export const APPEARANCES: { id: string; label: string; file?: string; theme: Theme; enabled?: boolean }[] = [
   { id: 'default_dark', label: 'Default D', file: 'default_dark.css', theme: 'dark' },
@@ -34,6 +35,10 @@ const APPEARANCE_KEY = 'ech-board-appearance'
 const SHOW_DELETED_KEY = 'ech-board-show-deleted'
 const HIDE_THREADS_KEY = 'ech-board-hide-threads'
 const EXPAND_FOLDS_KEY = 'ech-board-expand-folds'
+const HIDE_REACTIONS_KEY = 'ech-board-hide-reactions'
+const UI_STYLE_KEY = 'ech-board-ui-style'
+const CORNER_RADIUS_KEY = 'ech-board-corner-radius'
+const CORNER_RADIUS_VERSION_KEY = 'ech-board-corner-radius-version'
 
 function readString(key: string): string | null {
   try {
@@ -64,6 +69,10 @@ function initialTheme(): Theme {
 }
 
 export interface I18nValue {
+  uiStyle: Accessor<UiStyle>
+  setUiStyle: (style: UiStyle) => void
+  cornerRadius: Accessor<number>
+  setCornerRadius: (value: number) => void
   lang: Accessor<Lang>
   setLang: (l: Lang) => void
   theme: Accessor<Theme>
@@ -76,6 +85,8 @@ export interface I18nValue {
   setHideThreadsCompletely: (v: boolean) => void
   expandFolds: Accessor<boolean>
   setExpandFolds: (v: boolean) => void
+  hideReactions: Accessor<boolean>
+  setHideReactions: (v: boolean) => void
   t: (key: MessageKey, vars?: Record<string, string | number>) => string
   days: Accessor<readonly string[]>
   months: Accessor<readonly string[]>
@@ -100,10 +111,35 @@ export function I18nProvider(props: { children: JSX.Element }) {
   const [showDeleted, setShowDeleted] = boolPref(SHOW_DELETED_KEY, false)
   const [hideThreadsCompletely, setHideThreadsCompletely] = boolPref(HIDE_THREADS_KEY, false)
   const [expandFolds, setExpandFolds] = boolPref(EXPAND_FOLDS_KEY, false)
+  const [hideReactions, setHideReactions] = boolPref(HIDE_REACTIONS_KEY, false)
+  const storedStyle = readString(UI_STYLE_KEY)
+  const [uiStyle, setUiStyleSignal] = createSignal<UiStyle>(storedStyle === 'potato' ? 'potato' : 'modern')
+  const savedRadius = readString(CORNER_RADIUS_KEY)
+  const radiusVersion = readString(CORNER_RADIUS_VERSION_KEY)
+  const storedRadiusValue = savedRadius === null ? 100 : Number(savedRadius)
+  const validStoredRadius = Number.isFinite(storedRadiusValue) ? Math.max(0, Math.min(100, storedRadiusValue)) : 100
+  const migratedRadius = radiusVersion === '2' || savedRadius === null
+    ? validStoredRadius
+    : Math.max(0, Math.min(100, validStoredRadius * 2))
+  const storedRadius = Math.round(migratedRadius / 10) * 10
+  writeString(CORNER_RADIUS_VERSION_KEY, '2')
+  if (savedRadius !== null && radiusVersion !== '2') writeString(CORNER_RADIUS_KEY, String(storedRadius))
+  const [cornerRadius, setCornerRadiusSignal] = createSignal<number>(storedRadius)
 
   const setLang = (value: Lang) => {
     writeString(LANG_KEY, value)
     setLangSignal(value)
+  }
+
+  const setUiStyle = (style: UiStyle) => {
+    writeString(UI_STYLE_KEY, style)
+    setUiStyleSignal(style)
+  }
+
+  const setCornerRadius = (value: number) => {
+    const next = Number.isFinite(value) ? Math.max(0, Math.min(100, Math.round(value / 10) * 10)) : 100
+    writeString(CORNER_RADIUS_KEY, String(next))
+    setCornerRadiusSignal(next)
   }
 
   const setTheme = (value: Theme) => {
@@ -122,6 +158,14 @@ export function I18nProvider(props: { children: JSX.Element }) {
     setAppearanceSignal(id)
     setThemeSignal(found.theme)
   }
+
+  createEffect(() => {
+    document.documentElement.setAttribute('data-ui-style', uiStyle())
+    document.documentElement.setAttribute('data-corner-radius', String(cornerRadius()))
+    const cornerScale = cornerRadius() / 100
+    document.documentElement.style.setProperty('--corner-scale', String(cornerScale))
+    document.documentElement.style.setProperty('--toggle-corner-scale', String(Math.sqrt(cornerScale)))
+  })
 
   createEffect(() => {
     const found = APPEARANCES.find((item) => item.id === appearance())
@@ -156,6 +200,10 @@ export function I18nProvider(props: { children: JSX.Element }) {
   }
 
   const value: I18nValue = {
+    uiStyle,
+    setUiStyle,
+    cornerRadius,
+    setCornerRadius,
     lang,
     setLang,
     theme,
@@ -168,6 +216,8 @@ export function I18nProvider(props: { children: JSX.Element }) {
     setHideThreadsCompletely,
     expandFolds,
     setExpandFolds,
+    hideReactions,
+    setHideReactions,
     t,
     days: () => dicts[lang()].days,
     months: () => dicts[lang()].months,
@@ -180,4 +230,24 @@ export function useI18n(): I18nValue {
   const value = useContext(I18nContext)
   if (!value) throw new Error('useI18n must be used within I18nProvider')
   return value
+}
+
+export function I18nLocaleScope(props: { lang: Lang; active?: Accessor<boolean>; children: JSX.Element }) {
+  const parent = useI18n()
+  const locale = () => (props.active ? (props.active() ? props.lang : parent.lang()) : props.lang)
+  const t = (key: MessageKey, vars?: Record<string, string | number>) => {
+    let s = dicts[locale()][key]
+    if (vars) {
+      for (const k of Object.keys(vars)) s = s.replace(`{${k}}`, String(vars[k]))
+    }
+    return s
+  }
+  const value: I18nValue = {
+    ...parent,
+    lang: locale,
+    t,
+    days: () => dicts[locale()].days,
+    months: () => dicts[locale()].months,
+  }
+  return <I18nContext.Provider value={value}>{props.children}</I18nContext.Provider>
 }

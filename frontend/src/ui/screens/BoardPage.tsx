@@ -63,7 +63,7 @@ export function BoardPage(props: { forumId: string; slug: string; heading: strin
         onBack={mobile() ? () => nav.back() : undefined}
         trailing={
           <>
-            <DropdownMenu items={boardMenu()} />
+            <DropdownMenu items={boardMenu()} triggerSize="lg" />
           </>
         }
       />

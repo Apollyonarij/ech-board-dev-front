@@ -120,7 +120,7 @@ export function PostBody(props: {
   const store = useStore()
   const staticInfo = useStaticInfo()
   const nav = useNav()
-  const { t, months, expandFolds } = useI18n()
+  const { t, months, expandFolds, hideReactions } = useI18n()
   const { openMedia } = useGallery()
   const selection = usePostSelection()
   const composer = useComposerBridge()
@@ -481,6 +481,8 @@ export function PostBody(props: {
             closed={props.threadClosed}
             threadObject={props.record.op ? (store.threadObject(props.record.threadUid) ?? undefined) : undefined}
             onEdit={props.onEdit}
+            slug={props.slug}
+            threadNum={props.threadNum}
           />
         </Show>
       </div>
@@ -541,7 +543,7 @@ export function PostBody(props: {
       <Show when={props.record.banned}>
         <div class={bannedNoteVariants()}>{t('post.authorBanned')}</div>
       </Show>
-      <Show when={props.record.reactions.length > 0}>
+      <Show when={!hideReactions() && props.record.reactions.length > 0}>
         <div class={reactionsRowVariants()}>
           <For each={props.record.reactions}>
             {(item) => (
@@ -558,7 +560,7 @@ export function PostBody(props: {
           </For>
         </div>
       </Show>
-      <Show when={staticInfo()}>
+      <Show when={!hideReactions() && staticInfo()}>
         {(info) => (
           <ReactionPicker
             glyph={props.record.reactionGlyph}
