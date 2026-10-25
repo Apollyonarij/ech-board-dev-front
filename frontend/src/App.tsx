@@ -126,7 +126,6 @@ function Shell() {
         store.loadBoard(data)
         return
       }
-
     } catch (e) {
       if (mine === generation) setError(String(e))
     } finally {

@@ -16,6 +16,7 @@ import { openMobileComposer } from '../composerVisibility'
 
 const pageVariants = cva('flex min-h-screen min-w-0 flex-col')
 const screenVariants = cva('flex min-h-dvh flex-col')
+const boardMenuTriggerVariants = cva('px-1 py-2 hover:bg-hover')
 const listVariants = cva('px-6 pb-28 pt-4')
 const listMobileVariants = cva('pl-[calc(1rem+env(safe-area-inset-left,0px))] pr-[calc(1.25rem+env(safe-area-inset-right,0px))] pb-[calc(var(--mobile-tab)+80px)] pt-2.5')
 const sentinelVariants = cva('h-px')
@@ -61,11 +62,7 @@ export function BoardPage(props: { forumId: string; slug: string; heading: strin
         title={props.heading}
         subtitle={props.host ?? ''}
         onBack={mobile() ? () => nav.back() : undefined}
-        trailing={
-          <>
-            <DropdownMenu items={boardMenu()} />
-          </>
-        }
+        trailing={<DropdownMenu items={boardMenu()} triggerVariant="glass" class={boardMenuTriggerVariants()} />}
       />
       <div class={mobile() ? listMobileVariants() : listVariants()}>
         <For each={rows()}>

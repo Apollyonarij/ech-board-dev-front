@@ -185,12 +185,14 @@ function ThreadBody(props: {
 
   createEffect(() => {
     posts()
+    const remeasure = requestAnimationFrame(measure)
+    onCleanup(() => cancelAnimationFrame(remeasure))
     const composer = document.querySelector<HTMLElement>('[data-composer]')
     const threadList = document.querySelector<HTMLElement>('[data-thread-scroll]')
     if (!composer || !threadList) return
     let height = composer.getBoundingClientRect().height
     const syncComposerSpace = (composerHeight: number) => {
-      const padding = `${Math.ceil(composerHeight + 16)}px`
+      const padding = `${Math.ceil(composerHeight + 8)}px`
       if (threadList.style.paddingBottom !== padding) threadList.style.paddingBottom = padding
     }
     syncComposerSpace(height)
