@@ -1,4 +1,4 @@
-import { createEffect, createMemo, createSignal, on, onCleanup, Show } from 'solid-js'
+import { createEffect, createMemo, createSignal, onCleanup, Show } from 'solid-js'
 import { Router, Route as RouterRoute, useLocation } from '@solidjs/router'
 import { cva } from 'class-variance-authority'
 import { ensureDefaultContext, loadBoardViewData, loadPostTooltip, loadThreadViewData } from './core/load'
@@ -8,8 +8,8 @@ import { loadBoards, listForums, type BoardInfo, type ForumInfo } from './core/v
 import { RealtimeClient } from './core/realtime/client'
 import { ForumStore } from './store/store'
 import { parseRoute, type Route } from './ui/route'
-import type { RoleKind, RoleOption } from './core/intent/roles'
-import { detectForumRoles, detectViewRoles, hasModRole, modPreviewEnabled } from './ui/roles'
+import type { RoleOption } from './core/intent/roles'
+import { detectViewRoles } from './ui/roles'
 import { StoreProvider } from './ui/store'
 import { ModProvider } from './ui/mod'
 import { ModalsProvider } from './ui/modals'
@@ -17,15 +17,14 @@ import { EntityActionsProvider } from './ui/entityActions'
 import { ComposerBridgeProvider } from './ui/composerBridge'
 import { GalleryProvider } from './ui/components/Gallery/GalleryProvider'
 import { PostTooltipProvider } from './ui/postTooltip/PostTooltipProvider'
-import { I18nLocaleScope, I18nProvider } from './ui/i18n'
+import { I18nProvider } from './ui/i18n'
 import { TitleSync } from './ui/TitleSync'
 import { reportError } from './ui/errors'
 import { ThreadPage } from './ui/screens/ThreadPage'
 import { BoardPage } from './ui/screens/BoardPage'
 import { BoardsPage } from './ui/screens/BoardsPage'
+import { ComposePage } from './ui/screens/ComposePage'
 import { SettingsPage } from './ui/screens/SettingsPage'
-import { ModPage } from './ui/screens/ModPage'
-import { closeModTabs } from './ui/modTabs'
 import { NavPanel, type Section } from './ui/components/NavPanel'
 import { IconSprite } from './ui/icons/IconSprite'
 import { StatusPill } from './ui/components/StatusPill'
@@ -57,7 +56,7 @@ interface Context {
 }
 
 function contentPath(route: Route): string | null {
-  if (route.page === 'board') return `b:${route.forumId ?? ''}:${route.slug}`
+  if (route.page === 'board' || route.page === 'compose') return `b:${route.forumId ?? ''}:${route.slug}`
   if (route.page === 'thread') return `t:${route.forumId ?? ''}:${route.slug}:${route.threadNum}`
   return null
 }
@@ -128,7 +127,19 @@ function Shell() {
         store.loadBoard(data)
         return
       }
-
+      if (route.page === 'compose') {
+        const board = boards().find((item) => item.slug === route.slug)
+        if (!board) {
+          nav.navigate({ page: 'boards', forumId: ctx.forumId })
+          return
+        }
+        const data = await loadBoardViewData(ctx.relayUrl, board.uid)
+        if (mine !== generation) return
+        const kinds = detectViewRoles(data)
+        store.setRoleKinds(kinds.map((role) => role.kind))
+        setRoles(kinds)
+        store.loadBoard(data)
+      }
     } catch (e) {
       if (mine === generation) setError(String(e))
     } finally {
@@ -145,7 +156,7 @@ function Shell() {
     const ctx = context()
     if (!ctx) return
     const route = parseRoute(location.pathname + location.hash, getCachedDefaultForumId())
-    if (route.page === 'settings' || route.page === 'mod') {
+    if (route.page === 'settings') {
       setLoading(false)
       return
     }
@@ -162,7 +173,6 @@ function Shell() {
     const refresh =
       prev !== null &&
       prev.page !== 'settings' &&
-      prev.page !== 'mod' &&
       prev.forumId === route.forumId &&
       ((sameContent && loaded) || (route.page === 'board' && prev.page === 'thread' && prev.slug === route.slug && store.boardInfo() !== null))
     void run(route, ctx, refresh)
@@ -205,28 +215,7 @@ function Shell() {
     store.dispose()
   })
 
-  const [modSeenForum, setModSeenForum] = createSignal<string | null>(null)
-  const forumRoles = createMemo(() => {
-    const ctx = context()
-    return ctx && boardsReady() ? detectForumRoles(ctx.relayUrl, ctx.forumId) : []
-  })
-  createEffect(() => {
-    const ctx = context()
-    if (ctx && hasModRole(roles().map((role) => role.kind))) setModSeenForum(ctx.forumId)
-  })
-  const modRoleKinds = createMemo(() => {
-    const seen = modSeenForum() === context()?.forumId ? roles() : []
-    return [...new Set([...forumRoles(), ...seen].map((role) => role.kind))]
-  })
-  const isMod = () => modPreviewEnabled() || hasModRole(modRoleKinds()) || (modSeenForum() !== null && modSeenForum() === context()?.forumId)
-  const previewRoleKinds = () => (modRoleKinds().length > 0 ? modRoleKinds() : modPreviewEnabled() ? (['forum_admin'] as RoleKind[]) : [])
-
   const route = () => parseRoute(location.pathname + location.hash, getCachedDefaultForumId())
-  createEffect(on(() => route().page, (page) => page !== 'mod' && closeModTabs(), { defer: true }))
-  const modRoute = createMemo(() => {
-    const current = route()
-    return current.page === 'mod' ? current : null
-  })
   const threadRoute = createMemo(() => {
     const current = route()
     return current.page === 'thread' ? current : null
@@ -235,6 +224,10 @@ function Shell() {
     const current = route()
     return current.page === 'board' ? current : null
   })
+  const composeRoute = createMemo(() => {
+    const current = route()
+    return current.page === 'compose' ? current : null
+  })
   const section = (): Section => (route().page === 'settings' ? 'settings' : 'boards')
   const setting = () => {
     const current = route()
@@ -242,7 +235,7 @@ function Shell() {
   }
   const currentBoard = () => {
     const current = route()
-    if (current.page === 'board' || current.page === 'thread') {
+    if (current.page === 'board' || current.page === 'thread' || current.page === 'compose') {
       return boards().find((board) => board.slug === current.slug) ?? null
     }
     return null
@@ -284,8 +277,6 @@ function Shell() {
       boards={boards()}
       board={currentBoard()}
       setting={setting()}
-      modTab={modRoute()?.tab ?? null}
-      onOpenMod={(tab) => nav.navigate({ page: 'mod', tab })}
       onToggleCollapsed={() => setCollapsed(!collapsed())}
       onSelectForum={selectForum}
       onSelectBoard={(board) => nav.navigate({ page: 'board', forumId: context()!.forumId, slug: board.slug })}
@@ -297,8 +288,7 @@ function Shell() {
 
   return (
     <I18nProvider>
-      <I18nLocaleScope lang="en" active={() => modRoute() !== null}>
-        <StoreProvider store={store}>
+      <StoreProvider store={store}>
         <ModProvider roles={roles()} onError={reportError}>
           <ModalsProvider roles={roles()} relayUrl={context()?.relayUrl ?? ''}>
             <EntityActionsProvider roles={roles()}>
@@ -338,6 +328,9 @@ function Shell() {
                               />
                             )}
                           </Show>
+                          <Show when={composeRoute()}>
+                            {(r) => <ComposePage forumId={r().forumId ?? ''} slug={r().slug} heading={boardHeading()} />}
+                          </Show>
                           <Show when={route().page === 'boards' ? true : null}>
                             <BoardsPage
                               forumId={context()!.forumId}
@@ -345,18 +338,6 @@ function Shell() {
                               forums={forums()}
                               onSelectForum={selectForum}
                             />
-                          </Show>
-                          <Show when={modRoute()}>
-                            {(r) => (
-                              <ModPage
-                                tab={r().tab}
-                                forumId={context()!.forumId}
-                                boards={boards().map((board) => board.slug)}
-                                ready={boardsReady()}
-                                canModerate={isMod()}
-                                roleKinds={previewRoleKinds()}
-                              />
-                            )}
                           </Show>
                           <Show when={route().page === 'settings' ? true : null}>
                             <SettingsPage setting={setting()} baseHref="/settings" />
@@ -370,8 +351,7 @@ function Shell() {
               </GalleryProvider>
             </ComposerBridgeProvider>
           </EntityActionsProvider>          </ModalsProvider>        </ModProvider>
-        </StoreProvider>
-      </I18nLocaleScope>
+      </StoreProvider>
     </I18nProvider>
   )
 }
