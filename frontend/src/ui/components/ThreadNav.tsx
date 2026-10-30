@@ -5,7 +5,7 @@ import { ArrowUpIcon } from '../icons/ArrowUpIcon'
 import { useI18n } from '../i18n'
 import { IconButton } from './IconButton'
 
-const upBtnVariants = cva('absolute right-[1.125rem] min-[900px]:right-[1.375rem] top-full z-50 bg-chip transition-colors hover:bg-hover')
+const upBtnVariants = cva('nav-up absolute right-[1.125rem] min-[900px]:right-[1.375rem] top-full z-50 bg-chip transition-colors hover:bg-hover')
 const downBtnVariants = cva('absolute right-2 bottom-[calc(100%+4px)] z-50 bg-chip transition-colors hover:bg-hover')
 const unreadBadgeVariants = cva('absolute -right-1.5 -top-1.5 flex h-badge min-w-badge items-center justify-center rounded-md bg-danger px-1.5 text-center text-sm font-bold text-white')
 
